@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.IO;
 using System.Threading;
-using System.Windows.Forms;
 using static System.Net.Mime.MediaTypeNames;
 
 namespace FluxWebhookMonitor
@@ -14,10 +13,6 @@ namespace FluxWebhookMonitor
         [STAThread] // Set the application to use STA threading model
         public static void Main(string[] args)
         {
-            Application.SetHighDpiMode(HighDpiMode.SystemAware);
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-
             var builder = WebApplication.CreateBuilder(args);
             ConfigureWebApp(builder);
 
@@ -30,7 +25,6 @@ namespace FluxWebhookMonitor
             });
             thread.Start();
 
-            Application.Run(new SystrayApplicationContext());
         }
 
         static void ConfigureWebApp(WebApplicationBuilder builder)
