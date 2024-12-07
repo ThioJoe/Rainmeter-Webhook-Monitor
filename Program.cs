@@ -45,18 +45,26 @@ namespace FluxWebhookMonitor
                 Dictionary<string,string> queryParamResults = new Dictionary<string, string>();
 
                 IConfigurationSection webhookSettings = app.Configuration.GetSection("WebhookSettings");
-                //string? outputFile = webhookSettings["OutputFileName"];
-                string? queryParam = webhookSettings["QueryParameter"];
-                string? paramValue = http.Request.Query[queryParam];
 
-                // Doing this as a dictionary in case later we want to support more than one query parameter. In which case we can use a loop or something
-                if (queryParam != null && paramValue != null)
+                string? queryParam = webhookSettings["QueryParameter"];
+                if (queryParam == null || string.IsNullOrEmpty(queryParam))
                 {
-                    queryParamResults[queryParam] = paramValue; 
+                    Console.WriteLine("Error: Query parameter not found.");
+                    return Results.Problem("Query parameter not found.");
                 }
 
+                string? paramValue = http.Request.Query[queryParam];
+                if (paramValue == null) // Empty string is ok but null is not
+                {
+                    Console.WriteLine("Error: Query parameter not found.");
+                    return Results.Problem("Query parameter not found.");
+                }
+
+                // Doing this as a dictionary in case later we want to support more than one query parameter. In which case we can use a loop or something
+                queryParamResults[queryParam] = paramValue;
+
                 IConfigurationSection rainmeterSettings = app.Configuration.GetSection("RainmeterSettings");
-                string rainmeterCommand = CreateRainmeterCommand(rainmeterSettings, queryParamResults);
+                string? rainmeterCommand = CreateRainmeterCommand(rainmeterSettings, queryParamResults);
 
                 // An empty string is ok, but null is a problem
                 if (rainmeterCommand == null)
