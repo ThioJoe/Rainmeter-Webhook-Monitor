@@ -64,29 +64,42 @@ namespace FluxWebhookMonitor
                 queryParamResults[queryParam] = paramValue;
 
                 IConfigurationSection rainmeterSettings = app.Configuration.GetSection("RainmeterSettings");
-                string? rainmeterCommand = CreateRainmeterCommand(rainmeterSettings, queryParamResults);
+                string? rainMeterPath = rainmeterSettings["RainmeterPath"];
+                if (rainMeterPath == null || string.IsNullOrEmpty(rainMeterPath))
+                {
+                    Console.WriteLine("Error: Rainmeter path not found.");
+                    return Results.Problem("Rainmeter path not found.");
+                }
+
+                string? rainmeterCommandArgs = CreateRainmeterCommandArgs(rainmeterSettings: rainmeterSettings, queryParamResults: queryParamResults, argsOnly: true);
 
                 // An empty string is ok, but null is a problem
-                if (rainmeterCommand == null)
+                if (rainmeterCommandArgs == null)
                     return Results.Problem("Failed to create Rainmeter command.");
 
                 // Debug print the command
-                Debug.WriteLine($"Rainmeter command: {rainmeterCommand}");
+                Debug.WriteLine($"Rainmeter command: {rainmeterCommandArgs}");
 
-                // Send the command to Rainmeter
+                // Run the shell command to send the info/command to Rainmeter
                 try
                 {
-                    // Send the command silently through shell, not through cmd window
-                    System.Diagnostics.ProcessStartInfo psi = new System.Diagnostics.ProcessStartInfo("cmd.exe", $"/c {rainmeterCommand}")
+                    ProcessStartInfo psi = new ProcessStartInfo
                     {
+                        FileName = rainMeterPath,
+                        Arguments = rainmeterCommandArgs,
                         CreateNoWindow = true,
-                        UseShellExecute = false
+                        UseShellExecute = false,
+                        WindowStyle = ProcessWindowStyle.Hidden
                     };
+
+                    using Process process = Process.Start(psi);
+                    // Optionally wait for the process to complete
+                    // process?.WaitForExit();
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Error sending command: {ex.Message}");
-                    return Results.Problem("Failed to write to file.");
+                    return Results.Problem("Failed to execute command.");
                 }
 
                 return Results.Ok($"Received {queryParam}: {paramValue}");
@@ -96,7 +109,7 @@ namespace FluxWebhookMonitor
             app.Urls.Add(url);
         }
 
-        static string? CreateRainmeterCommand(IConfigurationSection rainmeterSettings, Dictionary<string, string> queryParamResults)
+        static string? CreateRainmeterCommandArgs(IConfigurationSection rainmeterSettings, Dictionary<string, string> queryParamResults, bool argsOnly)
         {
             string? rainmeterPath = rainmeterSettings["RainmeterPath"];
             string? bangCommand = rainmeterSettings["BangCommand"];
@@ -133,7 +146,11 @@ namespace FluxWebhookMonitor
             else
                 Debug.WriteLine($"Warning: Parameter {parameterToUseAsValue} not found in query parameters.");
 
-            return $"\"{rainmeterPath}\" {bangCommand} {measureName} {optionName} {value} {skinConfigName}";
+            if (argsOnly)
+                return $"{bangCommand} {measureName} {optionName} {value} {skinConfigName}";
+            else
+                return $"\"{rainmeterPath}\" {bangCommand} {measureName} {optionName} {value} {skinConfigName}";
+
         }
     }
 }
