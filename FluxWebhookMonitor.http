@@ -1,6 +1,0 @@
-@FluxWebhookMonitor_HostAddress = http://localhost:5244
-
-GET {{FluxWebhookMonitor_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

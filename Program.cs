@@ -42,7 +42,7 @@ namespace FluxWebhookMonitor
         {
             app.MapPost("/mywebhook", (HttpContext http) =>
             {
-                Dictionary<string,string> queryParamResults = new Dictionary<string, string>();
+                Dictionary<string,string> queryParamResults = [];
 
                 IConfigurationSection webhookSettings = app.Configuration.GetSection("WebhookSettings");
 
@@ -92,7 +92,7 @@ namespace FluxWebhookMonitor
                         WindowStyle = ProcessWindowStyle.Hidden
                     };
 
-                    using Process process = Process.Start(psi);
+                    using Process? process = Process.Start(psi);
                     // Optionally wait for the process to complete
                     // process?.WaitForExit();
                 }
@@ -124,7 +124,7 @@ namespace FluxWebhookMonitor
             // Skin config name is technically optional but usually required
             if (string.IsNullOrWhiteSpace(rainmeterPath) || string.IsNullOrWhiteSpace(bangCommand) || string.IsNullOrWhiteSpace(measureName) || optionName == null)
             {
-                List<string> missingSettings = new List<string>();
+                List<string> missingSettings = new();
 
                 if (string.IsNullOrWhiteSpace(rainmeterPath))
                     missingSettings.Add(nameof(rainmeterPath));
@@ -141,8 +141,8 @@ namespace FluxWebhookMonitor
             }
 
             // Find the value of the parameter to use as value
-            if (parameterToUseAsValue != null && queryParamResults.ContainsKey(parameterToUseAsValue))
-                value = queryParamResults[parameterToUseAsValue];
+            if (parameterToUseAsValue != null && queryParamResults.TryGetValue(parameterToUseAsValue, out string? outValue))
+                value = outValue;
             else
                 Debug.WriteLine($"Warning: Parameter {parameterToUseAsValue} not found in query parameters.");
 
