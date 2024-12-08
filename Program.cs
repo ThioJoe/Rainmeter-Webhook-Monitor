@@ -39,6 +39,14 @@ namespace RainmeterWebhookMonitor
         const string webhookParameterToUseAsValue_SettingName = "WebhookParameterToUseAsValue";
         const string optionName_SettingName = "OptionName";
 
+        // Set up global settings
+        static IConfigurationSection? rainmeterSettings;
+        static List<IConfigurationSection>? commandsList;
+        static IConfigurationSection? appSettings;
+        static string? rainmeterPath = null;
+        static int commandDelay = defaultCommandDelay;
+        static string? webhookURL = null;
+        static bool showSystemTrayIcon = false;
 
         // ----------------------------- MAIN -----------------------------
         [STAThread] // Set the application to use STA threading model
@@ -60,11 +68,10 @@ namespace RainmeterWebhookMonitor
             ConfigureWebApp(builder);
             WebApplication app = builder.Build();
 
-            // Get AppSettings section from the json file
-            IConfigurationSection appSettings = app.Configuration.GetSection(applicationSettings_SectionName);
+            // Load the rest of the settings from the json file
+            LoadConfigFile(app);
 
-            // Enable system tray icon if specified in the json file
-            bool showSystemTrayIcon = appSettings["ShowSystemTrayIcon"]?.ToLower() == "true";
+            // Run the app with or without a system tray icon depending on the settings
             if (showSystemTrayIcon)
             {
                 Application.EnableVisualStyles();
@@ -199,23 +206,12 @@ namespace RainmeterWebhookMonitor
         {
             app.MapPost(webhookURIPath, (HttpContext http) =>
             {
-                // Collect user settings from the json file
-                IConfigurationSection rainmeterSettings = app.Configuration.GetSection(rainmeterSettings_SectionName);
-
-                string? rainMeterPath = rainmeterSettings[rainmeterPath_SettingName];
-                if (rainMeterPath == null || string.IsNullOrEmpty(rainMeterPath))
-                    return LogProblemToConsoleAndDebug($"Error: Rainmeter path not found in {appConfigJsonName} file");
-
-                //List<string> commandsList = rainmeterSettings.GetSection(commandsListSettingName).Get<List<string>>() ?? new List<string>();
-                // Get each path within the section
-                List<IConfigurationSection> commandsList = (List<IConfigurationSection>)rainmeterSettings.GetSection(commandsList_SettingName).GetChildren();
-
-                if (commandsList.Count == 0)
-                    return LogProblemToConsoleAndDebug($"Error: Command list is empty in {appConfigJsonName} file");
-
-                string? queryParam;
+                string? queryParam = null;
                 Dictionary<string, string> queryParamResults = [];
                 List<IConfigurationSection> matchedCommandSets = [];
+
+                if (commandsList == null)
+                    return LogProblemToConsoleAndDebug("Commands list not found in json file.");
 
                 // See which commands specified by the user match any query parameters in the request, and store them
                 foreach (IConfigurationSection commandSettings in commandsList)
@@ -245,7 +241,10 @@ namespace RainmeterWebhookMonitor
                 int currentCommandIndex = 1;
                 foreach (IConfigurationSection commandSet in matchedCommandSets)
                 {
-                    string? rainmeterCommandArgs = CreateRainmeterCommandArgs(rainMeterPath, commandSettings: commandSet, queryParamResults: queryParamResults, argsOnly: true);
+                    if (rainmeterPath == null) // Shouldn't be null but just in case to satisfy compiler
+                        return LogProblemToConsoleAndDebug("Rainmeter path not found in json file.");
+
+                    string? rainmeterCommandArgs = CreateRainmeterCommandArgs(rainmeterPath, commandSettings: commandSet, queryParamResults: queryParamResults, argsOnly: true);
 
                     // An empty string is ok, but null is a problem
                     if (rainmeterCommandArgs == null)
@@ -264,9 +263,6 @@ namespace RainmeterWebhookMonitor
                 // Debug print the commands list to send to Rainmeter
                 Debug.WriteLine($"Rainmeter commands:\n{string.Join("\n\t", rainmeterCommands)}");
 
-                string? commandDelayString = app.Configuration[$"{applicationSettings_SectionName}:{commandDelay_SettingName}"];
-                int commandDelay = commandDelayString != null ? int.Parse(commandDelayString) : defaultCommandDelay;
-
                 // Send each command to Rainmeter with a delay between each one as set in the json file
                 foreach (string rainmeterCommandArgs in rainmeterCommands)
                 {
@@ -276,7 +272,7 @@ namespace RainmeterWebhookMonitor
                     {
                         ProcessStartInfo psi = new ProcessStartInfo
                         {
-                            FileName = rainMeterPath,
+                            FileName = rainmeterPath,
                             Arguments = rainmeterCommandArgs,
                             CreateNoWindow = true,
                             UseShellExecute = false,
@@ -302,8 +298,11 @@ namespace RainmeterWebhookMonitor
                 return LogSuccessToConsoleAndDebug($"Finished processing request.");
 
             });
-            string url = $"http://localhost:{app.Configuration[$"{webhookSettings_SectionName}:Port"]}";
-            app.Urls.Add(url);
+            
+            if (webhookURL != null)
+                app.Urls.Add(webhookURL);
+            else
+                LogProblemToConsoleAndDebug("Webhook URL not valid. This is probably a bug!");
         }
 
         // ------------------------- Other Methods ------------------------
@@ -356,6 +355,59 @@ namespace RainmeterWebhookMonitor
                 return $"{bangCommand} {measureName} {optionName} {value} {skinConfigName}";
             else
                 return $"\"{rainmeterPath}\" {bangCommand} {measureName} {optionName} {value} {skinConfigName}";
+        }
+
+        static bool LoadConfigFile(WebApplication app)
+        {
+            // Get AppSettings section from the json file
+            appSettings = app.Configuration.GetSection(applicationSettings_SectionName);
+
+            // Enable system tray icon if specified in the json file
+            string? systemTrayIconSetting = appSettings["ShowSystemTrayIcon"];
+            if (systemTrayIconSetting != null)
+            {
+                if (systemTrayIconSetting.ToLower() == "true")
+                    showSystemTrayIcon = true;
+                else if (systemTrayIconSetting.ToLower() == "false")
+                    showSystemTrayIcon = false;
+                else
+                {
+                    // Default to true if the setting is not valid or not there
+                    Console.WriteLine("Error: ShowSystemTrayIcon setting in json file is not valid. Must be 'true' or 'false'. Defaulting to true");
+                    showSystemTrayIcon = true;
+                }
+            }
+            else
+            {
+                Console.WriteLine("Warning: ShowSystemTrayIcon setting not found in json file. Defaulting to true.");
+                showSystemTrayIcon = true; // Default to true if the setting is not there
+            }
+                
+            // Collect user settings from the json file
+            rainmeterSettings = app.Configuration.GetSection(rainmeterSettings_SectionName);
+            // Get each path within the section
+            commandsList = (List<IConfigurationSection>)rainmeterSettings.GetSection(commandsList_SettingName).GetChildren();
+
+            rainmeterPath = rainmeterSettings[rainmeterPath_SettingName];
+            if (rainmeterPath == null || string.IsNullOrEmpty(rainmeterPath))
+            {
+                Console.WriteLine($"Error: Rainmeter path not found in {appConfigJsonName} file");
+                return false;
+            }
+
+            if (commandsList == null || commandsList.Count == 0)
+            {
+                Console.WriteLine($"Error: Command list is empty in {appConfigJsonName} file");
+                return false;
+            }
+
+            string? commandDelayString = app.Configuration[$"{applicationSettings_SectionName}:{commandDelay_SettingName}"];
+            commandDelay = commandDelayString != null ? int.Parse(commandDelayString) : defaultCommandDelay;
+
+            webhookURL = $"http://localhost:{app.Configuration[$"{webhookSettings_SectionName}:Port"]}";
+
+            return true;
+
         }
 
         static void WriteTemplateJsonFile_FromEmbeddedResource(string resourceName)
