@@ -9,16 +9,22 @@ using System.Diagnostics;
 using System.Collections.Generic;
 using System.Windows.Forms;
 using Application = System.Windows.Forms.Application;
+using System.ComponentModel;
 
 #nullable enable
+#pragma warning disable IDE0028 // Simplify collection initialization. Some places it's clearer to use new() instead of []
 
 namespace RainmeterWebhookMonitor
 {
-    public class Program
+    public partial class Program
     {
+        // ------------------------ Constants and globals ------------------------
+
+        // File names
         const string appConfigJsonStem = "appsettings";
         static readonly string appConfigTemplateJsonName = $"{appConfigJsonStem}_template.json";
         static readonly string appConfigJsonName = $"{appConfigJsonStem}.json";
+        const string debugLogFileName = "RainmeterWebhookMonitor_DebugLog.txt";
 
         // App settings names in the json file
         const string commandDelay_SettingName = "Delay_Between_Multiple_Commands_ms";
@@ -87,17 +93,17 @@ namespace RainmeterWebhookMonitor
                 app.Run();
             }
         }
-        // ----------------------------------------------------------------
+        // -------------------------- End of Main -------------------------------
 
 
         // -------------------- Windows related methods -------------------
 
         // CustomApplicationContext class to handle the system tray icon
-        public class CustomApplicationContext : ApplicationContext, IDisposable
+        public partial class CustomApplicationContext : ApplicationContext, IDisposable
         {
-            private NotifyIcon notifyIcon;
-            private WebApplication webApp;
-            private CancellationTokenSource cancellationTokenSource;
+            private readonly NotifyIcon notifyIcon;
+            private readonly WebApplication webApp;
+            private readonly CancellationTokenSource cancellationTokenSource;
             private bool _disposed = false;
 
             public CustomApplicationContext(WebApplication app)
@@ -105,10 +111,10 @@ namespace RainmeterWebhookMonitor
                 webApp = app;
                 cancellationTokenSource = new CancellationTokenSource();
 
-                // Configure the web app
+                // Configure the web app (endpoints for the webhook, what to do upon receiving query, etc)
                 ConfigureEndpoints(webApp);
 
-                // Initialize NotifyIcon
+                // Initialize NotifyIcon (System tray icon)
                 notifyIcon = new NotifyIcon()
                 {
                     Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath),
@@ -117,6 +123,8 @@ namespace RainmeterWebhookMonitor
                 };
 
                 // Add menu items
+                notifyIcon.ContextMenuStrip.Items.Add("Open Config File", null, OpenConfigFile);
+                notifyIcon.ContextMenuStrip.Items.Add("Reload Config", null, RestartApp);
                 notifyIcon.ContextMenuStrip.Items.Add("Exit", null, Exit);
 
                 // Start web application in background
@@ -131,6 +139,38 @@ namespace RainmeterWebhookMonitor
                         // Normal shutdown, no need to handle
                     }
                 });
+            }
+
+            // Restarts the application to reload the json file
+            private void RestartApp(object? sender, EventArgs e)
+            {
+                // Cancel the current web application
+                cancellationTokenSource.Cancel();
+                // Dispose of the context (which includes cleanup)
+                Dispose();
+                // Restart the application
+                Process.Start(Application.ExecutablePath);
+            }
+
+            private void OpenConfigFile(object? sender, EventArgs e)
+            {
+                string configFilePath = Path.Combine(Directory.GetCurrentDirectory(), appConfigJsonName);
+                try
+                {
+                    Process.Start(new ProcessStartInfo(configFilePath) { UseShellExecute = true });
+                }
+                catch (Win32Exception ex)
+                {
+                    // If there is no association, try opening with Notepad
+                    if (ex.NativeErrorCode == 1155) // ERROR_NO_ASSOCIATION
+                    {
+                        Process.Start(new ProcessStartInfo("notepad.exe", configFilePath) { UseShellExecute = true });
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Error opening config file: {ex.Message}");
+                    }
+                }
             }
 
             private void Exit(object? sender, EventArgs e)
@@ -270,7 +310,7 @@ namespace RainmeterWebhookMonitor
                     // Run the shell command to send the info/command to Rainmeter
                     try
                     {
-                        ProcessStartInfo psi = new ProcessStartInfo
+                        ProcessStartInfo psi = new()
                         {
                             FileName = rainmeterPath,
                             Arguments = rainmeterCommandArgs,
@@ -347,7 +387,7 @@ namespace RainmeterWebhookMonitor
 
             // ---- Further processing ------
             // Add exclamation to bang command if it doesn't have it
-            if (!bangCommand.StartsWith("!"))
+            if (!bangCommand.StartsWith('!'))
                 bangCommand = "!" + bangCommand;
 
             // Construct the command string
@@ -366,9 +406,9 @@ namespace RainmeterWebhookMonitor
             string? systemTrayIconSetting = appSettings["ShowSystemTrayIcon"];
             if (systemTrayIconSetting != null)
             {
-                if (systemTrayIconSetting.ToLower() == "true")
+                if (systemTrayIconSetting.Equals("true", StringComparison.OrdinalIgnoreCase))
                     showSystemTrayIcon = true;
-                else if (systemTrayIconSetting.ToLower() == "false")
+                else if (systemTrayIconSetting.Equals("false", StringComparison.OrdinalIgnoreCase))
                     showSystemTrayIcon = false;
                 else
                 {
@@ -443,7 +483,7 @@ namespace RainmeterWebhookMonitor
             {
                 foreach (string arg in args)
                 {
-                    if (arg.ToLower() == "-template" || arg.ToLower() == "/template")
+                    if (arg.Equals("-template", StringComparison.OrdinalIgnoreCase) || arg.Equals("/template", StringComparison.OrdinalIgnoreCase))
                     {
                         WriteTemplateJsonFile_FromEmbeddedResource("RainmeterWebhookMonitor.appsettings.json");
                         Console.WriteLine($"Created {appConfigJsonName} template file from embedded resource.");
