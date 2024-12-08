@@ -86,11 +86,12 @@ namespace RainmeterWebhookMonitor
         // -------------------- Windows related methods -------------------
 
         // CustomApplicationContext class to handle the system tray icon
-        public class CustomApplicationContext : ApplicationContext
+        public class CustomApplicationContext : ApplicationContext, IDisposable
         {
             private NotifyIcon notifyIcon;
             private WebApplication webApp;
             private CancellationTokenSource cancellationTokenSource;
+            private bool _disposed = false;
 
             public CustomApplicationContext(WebApplication app)
             {
@@ -133,21 +134,40 @@ namespace RainmeterWebhookMonitor
                 // Cancel web application
                 cancellationTokenSource.Cancel();
 
-                // Cleanup
-                notifyIcon.Dispose();
+                // Dispose of the context (which includes cleanup)
+                Dispose();
 
                 // Exit the application context
                 Application.Exit();
             }
 
+            public new void Dispose()
+            {
+                Dispose(true);
+                GC.SuppressFinalize(this);
+            }
+
             protected override void Dispose(bool disposing)
             {
-                if (disposing)
+                if (!_disposed)
                 {
-                    notifyIcon?.Dispose();
-                    cancellationTokenSource?.Dispose();
+                    if (disposing)
+                    {
+                        // Dispose managed resources
+                        notifyIcon?.Dispose();
+                        cancellationTokenSource?.Dispose();
+                        webApp?.DisposeAsync().AsTask().Wait();
+                    }
+
+                    // Set disposed flag
+                    _disposed = true;
                 }
                 base.Dispose(disposing);
+            }
+
+            ~CustomApplicationContext()
+            {
+                Dispose(false);
             }
         }
 
