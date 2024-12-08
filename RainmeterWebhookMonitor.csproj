@@ -2,13 +2,19 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+	<UseWindowsForms>true</UseWindowsForms>
+	<ApplicationIcon>Assets\RainmeterWebhook.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <Content Remove="Assets\appsettings_template.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\RainmeterWebhook.ico" />
   </ItemGroup>
 
   <ItemGroup>
@@ -19,6 +25,9 @@
     <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="6.5.0" />
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="6.5.0" />
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="6.5.0" />
+  </ItemGroup>
+  <ItemGroup>
+     <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
   </ItemGroup>
 
 </Project>

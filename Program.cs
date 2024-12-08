@@ -7,6 +7,8 @@ using System.Threading;
 using static System.Net.Mime.MediaTypeNames;
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.Windows.Forms;
+using Application = System.Windows.Forms.Application;
 
 #nullable enable
 
@@ -59,6 +61,22 @@ namespace RainmeterWebhookMonitor
             ConfigureWebApp(builder);
 
             WebApplication app = builder.Build();
+
+            // Get AppSettings section from the json file
+            IConfigurationSection appSettings = app.Configuration.GetSection(applicationSettings_SectionName);
+
+            // Enable system tray icon
+            bool showSystemTrayIcon = appSettings["ShowSystemTrayIcon"]?.ToLower() == "true";
+            if (showSystemTrayIcon)
+            {
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                ApplicationContext context = new ApplicationContext();
+                ShowSystemTrayIcon();
+                Application.Run(context);
+            }
+
+            // Set up the web app
             ConfigureEndpoints(app);
 
             Thread thread = new Thread(() =>
@@ -69,6 +87,26 @@ namespace RainmeterWebhookMonitor
 
         }
         // ----------------------------------------------------------------
+
+
+        // -------------------- Windows related methods -------------------
+
+        // Show the system tray icon
+        static void ShowSystemTrayIcon()
+        {
+            // Create the NotifyIcon.
+            NotifyIcon notifyIcon = new NotifyIcon();
+            notifyIcon.Visible = true;
+
+            // Set the icon from the application's executable
+            notifyIcon.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+
+            // The ContextMenu property sets the menu that will appear when the systray icon is right clicked.
+            notifyIcon.ContextMenuStrip = new ContextMenuStrip();
+            notifyIcon.ContextMenuStrip.Items.Add(new ToolStripMenuItem("Exit", null, (s, e) => { Environment.Exit(0); }));
+        }
+
+        // --------------------- Web App Configuration -------------------
 
         static void ConfigureWebApp(WebApplicationBuilder builder)
         {
@@ -202,6 +240,8 @@ namespace RainmeterWebhookMonitor
             string url = $"http://localhost:{app.Configuration[$"{webhookSettings_SectionName}:Port"]}";
             app.Urls.Add(url);
         }
+
+        // ------------------------- Other Methods ------------------------
 
         static string? CreateRainmeterCommandArgs(string rainMeterPath, IConfigurationSection commandSettings, Dictionary<string, string> queryParamResults, bool argsOnly)
         {
