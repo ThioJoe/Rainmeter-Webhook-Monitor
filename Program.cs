@@ -15,6 +15,19 @@ namespace RainmeterWebhookMonitor
     {
         const string appConfigJsonName = "appsettings.json";
 
+        // Section names in the json file
+        const string webhookSettingsSectionName = "WebhookSettings";
+        const string rainmeterSettingsSectionName = "RainmeterSettings";
+
+        // Settings names in the json file
+        const string rainmeterPathSettingName = "RainmeterPath";
+        const string bangCommandSettingName = "BangCommand";
+        const string measureNameSettingName = "MeasureName";
+        const string skinConfigNameSettingName = "SkinConfigName";
+        const string webhookParameterToUseAsValueSettingName = "WebhookParameterToUseAsValue";
+        const string optionNameSettingName = "OptionName";
+
+
         [STAThread] // Set the application to use STA threading model
         public static void Main(string[] args)
         {
@@ -59,14 +72,14 @@ namespace RainmeterWebhookMonitor
             app.MapPost("/rainmeter", (HttpContext http) =>
             {
                 // Collect user settings from the json file
-                IConfigurationSection rainmeterSettings = app.Configuration.GetSection("RainmeterSettings");
+                IConfigurationSection rainmeterSettings = app.Configuration.GetSection(rainmeterSettingsSectionName);
 
-                string? rainMeterPath = rainmeterSettings["RainmeterPath"];
+                string? rainMeterPath = rainmeterSettings[rainmeterPathSettingName];
                 if (rainMeterPath == null || string.IsNullOrEmpty(rainMeterPath))
                     return LogProblemToConsoleAndDebug($"Error: Rainmeter path not found in {appConfigJsonName} file");
 
 
-                string? queryParam = rainmeterSettings["WebhookParameterToUseAsValue"];
+                string? queryParam = rainmeterSettings[webhookParameterToUseAsValueSettingName];
                 if (queryParam == null || string.IsNullOrEmpty(queryParam))
                     return LogProblemToConsoleAndDebug($"Error: Query parameter not found in {appConfigJsonName} file");
 
@@ -113,18 +126,18 @@ namespace RainmeterWebhookMonitor
                 return LogSuccessToConsoleAndDebug($"Received {queryParam}: {paramValue}");
 
             });
-            string url = $"http://localhost:{app.Configuration["WebhookSettings:Port"]}";
+            string url = $"http://localhost:{app.Configuration[$"{webhookSettingsSectionName}:Port"]}";
             app.Urls.Add(url);
         }
 
         static string? CreateRainmeterCommandArgs(IConfigurationSection rainmeterSettings, Dictionary<string, string> queryParamResults, bool argsOnly)
         {
-            string? rainmeterPath = rainmeterSettings["RainmeterPath"];
-            string? bangCommand = rainmeterSettings["BangCommand"];
-            string? measureName = rainmeterSettings["MeasureName"];
-            string? skinConfigName = rainmeterSettings["SkinConfigName"];
-            string? webhookParameterToUseAsValue = rainmeterSettings["WebhookParameterToUseAsValue"];
-            string? optionName = rainmeterSettings["OptionName"];
+            string? rainmeterPath = rainmeterSettings[rainmeterPathSettingName];
+            string? bangCommand = rainmeterSettings[bangCommandSettingName];
+            string? measureName = rainmeterSettings[measureNameSettingName];
+            string? skinConfigName = rainmeterSettings[skinConfigNameSettingName];
+            string? webhookParameterToUseAsValue = rainmeterSettings[webhookParameterToUseAsValueSettingName];
+            string? optionName = rainmeterSettings[optionNameSettingName];
 
             string value = ""; // It's possible that the value is an empty string so allow that. Null will be used for problems.
 
@@ -158,7 +171,6 @@ namespace RainmeterWebhookMonitor
                 return $"{bangCommand} {measureName} {optionName} {value} {skinConfigName}";
             else
                 return $"\"{rainmeterPath}\" {bangCommand} {measureName} {optionName} {value} {skinConfigName}";
-
         }
     }
 }
