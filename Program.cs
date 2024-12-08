@@ -9,7 +9,7 @@ using System.Diagnostics;
 
 #nullable enable
 
-namespace FluxWebhookMonitor
+namespace RainmeterWebhookMonitor
 {
     public class Program
     {
