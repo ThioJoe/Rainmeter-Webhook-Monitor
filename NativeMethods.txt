@@ -1,0 +1,3 @@
+﻿DefWindowProc
+GetWindowLongPtr
+SetWindowLongPtr
