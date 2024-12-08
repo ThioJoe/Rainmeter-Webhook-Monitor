@@ -6,6 +6,7 @@ using System.IO;
 using System.Threading;
 using static System.Net.Mime.MediaTypeNames;
 using System.Diagnostics;
+using System.Collections.Generic;
 
 #nullable enable
 
@@ -15,17 +16,24 @@ namespace RainmeterWebhookMonitor
     {
         const string appConfigJsonName = "appsettings.json";
 
+        // App settings names in the json file
+        const string commandDelay_SettingName = "Delay_Between_Multiple_Commands_ms";
+        const int defaultCommandDelay = 5;
+
         // Section names in the json file
-        const string webhookSettingsSectionName = "WebhookSettings";
-        const string rainmeterSettingsSectionName = "RainmeterSettings";
+        const string webhookSettings_SectionName = "WebhookSettings";
+        const string rainmeterSettings_SectionName = "RainmeterSettings";
+        const string applicationSettings_SectionName = "ApplicationSettings";
+        const string webhookURIPath = "/rainmeter";
 
         // Settings names in the json file
-        const string rainmeterPathSettingName = "RainmeterPath";
-        const string bangCommandSettingName = "BangCommand";
-        const string measureNameSettingName = "MeasureName";
-        const string skinConfigNameSettingName = "SkinConfigName";
-        const string webhookParameterToUseAsValueSettingName = "WebhookParameterToUseAsValue";
-        const string optionNameSettingName = "OptionName";
+        const string rainmeterPath_SettingName = "RainmeterPath";
+        const string commandsList_SettingName = "Commands";
+        const string bangCommand_SettingName = "BangCommand";
+        const string measureName_SettingName = "MeasureName";
+        const string skinConfigName_SettingName = "SkinConfigName";
+        const string webhookParameterToUseAsValue_SettingName = "WebhookParameterToUseAsValue";
+        const string optionName_SettingName = "OptionName";
 
 
         [STAThread] // Set the application to use STA threading model
@@ -69,75 +77,124 @@ namespace RainmeterWebhookMonitor
 
         static void ConfigureEndpoints(WebApplication app)
         {
-            app.MapPost("/rainmeter", (HttpContext http) =>
+            app.MapPost(webhookURIPath, (HttpContext http) =>
             {
                 // Collect user settings from the json file
-                IConfigurationSection rainmeterSettings = app.Configuration.GetSection(rainmeterSettingsSectionName);
+                IConfigurationSection rainmeterSettings = app.Configuration.GetSection(rainmeterSettings_SectionName);
 
-                string? rainMeterPath = rainmeterSettings[rainmeterPathSettingName];
+                string? rainMeterPath = rainmeterSettings[rainmeterPath_SettingName];
                 if (rainMeterPath == null || string.IsNullOrEmpty(rainMeterPath))
                     return LogProblemToConsoleAndDebug($"Error: Rainmeter path not found in {appConfigJsonName} file");
 
+                //List<string> commandsList = rainmeterSettings.GetSection(commandsListSettingName).Get<List<string>>() ?? new List<string>();
+                // Get each path within the section
+                List<IConfigurationSection> commandsList = (List < IConfigurationSection > )rainmeterSettings.GetSection(commandsList_SettingName).GetChildren();
 
-                string? queryParam = rainmeterSettings[webhookParameterToUseAsValueSettingName];
-                if (queryParam == null || string.IsNullOrEmpty(queryParam))
-                    return LogProblemToConsoleAndDebug($"Error: Query parameter not found in {appConfigJsonName} file");
+                if (commandsList.Count == 0)
+                    return LogProblemToConsoleAndDebug($"Error: Command list is empty in {appConfigJsonName} file");
 
-
-                // Get the user-specified query parameter from the request
-                string? paramValue = http.Request.Query[queryParam];
-                if (paramValue == null) // Empty string is ok but null is not
-                    return LogProblemToConsoleAndDebug($"Error: Query parameter ({queryParam}) not found in the received webhook message. It wasn't simply an empty string result, it was apparently not included at all. Did you specified the right parameter in {appConfigJsonName}?");
-
-                // Plcae the query and its result value in the dictionary. This will allow multiple query parameters to be used in the future.
+                string? queryParam;
                 Dictionary<string, string> queryParamResults = [];
-                queryParamResults[queryParam] = paramValue;
+                List<IConfigurationSection> matchedCommandSets = [];
 
-                string? rainmeterCommandArgs = CreateRainmeterCommandArgs(rainmeterSettings: rainmeterSettings, queryParamResults: queryParamResults, argsOnly: true);
-
-                // An empty string is ok, but null is a problem
-                if (rainmeterCommandArgs == null)
-                    return LogProblemToConsoleAndDebug("Failed to create Rainmeter command.");
-
-                // Debug print the command
-                Debug.WriteLine($"Rainmeter command: {rainmeterCommandArgs}");
-
-                // Run the shell command to send the info/command to Rainmeter
-                try
+                // See which commands specified by the user match any query parameters in the request, and store them
+                foreach (IConfigurationSection commandSettings in commandsList)
                 {
-                    ProcessStartInfo psi = new ProcessStartInfo
+                    queryParam = commandSettings[webhookParameterToUseAsValue_SettingName];
+                    if (queryParam == null || string.IsNullOrEmpty(queryParam))
+                        return LogProblemToConsoleAndDebug($"Error: A query parameter to use was not found in a command section in {appConfigJsonName} file");
+
+                    // Check if the query parameter is in the request
+                    if (http.Request.Query.ContainsKey(queryParam) && http.Request.Query[queryParam].Count > 0)
                     {
-                        FileName = rainMeterPath,
-                        Arguments = rainmeterCommandArgs,
-                        CreateNoWindow = true,
-                        UseShellExecute = false,
-                        WindowStyle = ProcessWindowStyle.Hidden
-                    };
+                        string? paramValue = http.Request.Query[queryParam];
+                        if (paramValue == null) // Empty string is ok but null is not
+                            return LogProblemToConsoleAndDebug($"Error: Query parameter ({queryParam}) not found in the received webhook message. It wasn't simply an empty string result, it was apparently not included at all. Did you specified the right parameter in {appConfigJsonName}?");
+                        
+                        queryParamResults[queryParam] = paramValue;
+                        matchedCommandSets.Add(commandSettings);
 
-                    using Process? process = Process.Start(psi);
-                    // Optionally wait for the process to complete
-                    // process?.WaitForExit();
+                        // Output log with the query parameter and its value
+                        Debug.WriteLine($"Matched Query parameter in received request: {queryParam}, Value: {queryParamResults[queryParam]}");
+                    }
                 }
-                catch (Exception ex)
+
+                // Create list of commands to send to Rainmeter
+                List<string> rainmeterCommands = new();
+
+                int currentCommandIndex = 1;
+                foreach (IConfigurationSection commandSet in matchedCommandSets)
                 {
-                    return LogProblemToConsoleAndDebug($"Error sending command: {ex.Message}");
+                    string? rainmeterCommandArgs = CreateRainmeterCommandArgs(rainMeterPath, commandSettings: commandSet, queryParamResults: queryParamResults, argsOnly: true);
+
+                    // An empty string is ok, but null is a problem
+                    if (rainmeterCommandArgs == null)
+                        return LogProblemToConsoleAndDebug($"Failed to create Rainmeter command set from json file. Command set number: {currentCommandIndex}");
+                    else
+                    {
+                        rainmeterCommands.Add(rainmeterCommandArgs);
+                    }
+                    currentCommandIndex++;
                 }
 
-                return LogSuccessToConsoleAndDebug($"Received {queryParam}: {paramValue}");
+                // If there are no commands to send, return a problem result
+                if (rainmeterCommands.Count == 0)
+                    return LogProblemToConsoleAndDebug("No commands to send to Rainmeter.");
+
+                // Debug print the commands list to send to Rainmeter
+                Debug.WriteLine($"Rainmeter commands:\n{string.Join("\n\t", rainmeterCommands)}");
+
+                string? commandDelayString = app.Configuration[$"{applicationSettings_SectionName}:{commandDelay_SettingName}"];
+                int commandDelay = commandDelayString != null ? int.Parse(commandDelayString) : defaultCommandDelay;
+
+                // Send each command to Rainmeter with a delay between each one as set in the json file
+                foreach (string rainmeterCommandArgs in rainmeterCommands)
+                {
+                    // Run the shell command to send the info/command to Rainmeter
+                    // Run the shell command to send the info/command to Rainmeter
+                    try
+                    {
+                        ProcessStartInfo psi = new ProcessStartInfo
+                        {
+                            FileName = rainMeterPath,
+                            Arguments = rainmeterCommandArgs,
+                            CreateNoWindow = true,
+                            UseShellExecute = false,
+                            WindowStyle = ProcessWindowStyle.Hidden
+                        };
+
+                        using Process? process = Process.Start(psi);
+                        // Optionally wait for the process to complete
+                        // process?.WaitForExit();
+                    }
+                    catch (Exception ex)
+                    {
+                        return LogProblemToConsoleAndDebug($"Error sending command: {ex.Message}");
+                    }
+
+                    // Delay between each command
+                    if (rainmeterCommands.Count > 1)
+                    {
+                        Thread.Sleep(commandDelay);
+                    }
+                }
+
+                return LogSuccessToConsoleAndDebug($"Finished processing request.");
 
             });
-            string url = $"http://localhost:{app.Configuration[$"{webhookSettingsSectionName}:Port"]}";
+            string url = $"http://localhost:{app.Configuration[$"{webhookSettings_SectionName}:Port"]}";
             app.Urls.Add(url);
         }
 
-        static string? CreateRainmeterCommandArgs(IConfigurationSection rainmeterSettings, Dictionary<string, string> queryParamResults, bool argsOnly)
+        static string? CreateRainmeterCommandArgs(string rainMeterPath, IConfigurationSection commandSettings, Dictionary<string, string> queryParamResults, bool argsOnly)
         {
-            string? rainmeterPath = rainmeterSettings[rainmeterPathSettingName];
-            string? bangCommand = rainmeterSettings[bangCommandSettingName];
-            string? measureName = rainmeterSettings[measureNameSettingName];
-            string? skinConfigName = rainmeterSettings[skinConfigNameSettingName];
-            string? webhookParameterToUseAsValue = rainmeterSettings[webhookParameterToUseAsValueSettingName];
-            string? optionName = rainmeterSettings[optionNameSettingName];
+            string? rainmeterPath = rainMeterPath;
+
+            string? bangCommand = commandSettings[bangCommand_SettingName];
+            string? measureName = commandSettings[measureName_SettingName];
+            string? skinConfigName = commandSettings[skinConfigName_SettingName];
+            string? webhookParameterToUseAsValue = commandSettings[webhookParameterToUseAsValue_SettingName];
+            string? optionName = commandSettings[optionName_SettingName];
 
             string value = ""; // It's possible that the value is an empty string so allow that. Null will be used for problems.
 
@@ -167,6 +224,12 @@ namespace RainmeterWebhookMonitor
             else
                 Debug.WriteLine($"Warning: Parameter {webhookParameterToUseAsValue} not found in query parameters.");
 
+            // ---- Further processing ------
+            // Add exclamation to bang command if it doesn't have it
+            if (!bangCommand.StartsWith("!"))
+                bangCommand = "!" + bangCommand;
+
+            // Construct the command string
             if (argsOnly)
                 return $"{bangCommand} {measureName} {optionName} {value} {skinConfigName}";
             else
