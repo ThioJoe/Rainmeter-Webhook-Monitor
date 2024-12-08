@@ -40,36 +40,36 @@ namespace RainmeterWebhookMonitor
 
         static void ConfigureEndpoints(WebApplication app)
         {
-            app.MapPost("/mywebhook", (HttpContext http) =>
+            app.MapPost("/rainmeter", (HttpContext http) =>
             {
-                Dictionary<string,string> queryParamResults = [];
-
-                IConfigurationSection webhookSettings = app.Configuration.GetSection("WebhookSettings");
-
-                string? queryParam = webhookSettings["QueryParameter"];
-                if (queryParam == null || string.IsNullOrEmpty(queryParam))
-                {
-                    Console.WriteLine("Error: Query parameter not found.");
-                    return Results.Problem("Query parameter not found.");
-                }
-
-                string? paramValue = http.Request.Query[queryParam];
-                if (paramValue == null) // Empty string is ok but null is not
-                {
-                    Console.WriteLine("Error: Query parameter not found.");
-                    return Results.Problem("Query parameter not found.");
-                }
-
-                // Doing this as a dictionary in case later we want to support more than one query parameter. In which case we can use a loop or something
-                queryParamResults[queryParam] = paramValue;
-
+                // Collect user settings from the json file
                 IConfigurationSection rainmeterSettings = app.Configuration.GetSection("RainmeterSettings");
+
                 string? rainMeterPath = rainmeterSettings["RainmeterPath"];
                 if (rainMeterPath == null || string.IsNullOrEmpty(rainMeterPath))
                 {
-                    Console.WriteLine("Error: Rainmeter path not found.");
+                    Console.WriteLine("Error: Rainmeter path not found in appsettings.json file");
                     return Results.Problem("Rainmeter path not found.");
                 }
+
+                string? queryParam = rainmeterSettings["WebhookParameterToUseAsValue"];
+                if (queryParam == null || string.IsNullOrEmpty(queryParam))
+                {
+                    Console.WriteLine("Error: Query parameter not found in appsettings.json file");
+                    return Results.Problem("Query parameter not found.");
+                }
+
+                // Get the user-specified query parameter from the request
+                string? paramValue = http.Request.Query[queryParam];
+                if (paramValue == null) // Empty string is ok but null is not
+                {
+                    Console.WriteLine($"Error: Query parameter ({queryParam}) not found in the received webhook message. It wasn't simply an empty string result, it was apparently not included at all. Did you specified the right parameter in appsettings.json?");
+                    return Results.Problem("Query parameter not found.");
+                }
+
+                // Plcae the query and its result value in the dictionary. This will allow multiple query parameters to be used in the future.
+                Dictionary<string, string> queryParamResults = [];
+                queryParamResults[queryParam] = paramValue;
 
                 string? rainmeterCommandArgs = CreateRainmeterCommandArgs(rainmeterSettings: rainmeterSettings, queryParamResults: queryParamResults, argsOnly: true);
 
@@ -102,7 +102,8 @@ namespace RainmeterWebhookMonitor
                     return Results.Problem("Failed to execute command.");
                 }
 
-                return Results.Ok($"Received {queryParam}: {paramValue}");
+                //return Results.Ok($"Received {queryParam}: {paramValue}");
+                return Results.Ok();
 
             });
             string url = $"http://localhost:{app.Configuration["WebhookSettings:Port"]}";
