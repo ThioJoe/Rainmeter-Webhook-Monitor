@@ -47,7 +47,6 @@ namespace RainmeterWebhookMonitor
             // Set the current working directory to the directory of the executable
             Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
             Debug.WriteLine($"Current directory: {Directory.GetCurrentDirectory()}");
-
             ProcessLaunchArgs(args);
 
             // Check if the json file exists, if not, create it from the embedded resource
@@ -59,51 +58,97 @@ namespace RainmeterWebhookMonitor
 
             WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
             ConfigureWebApp(builder);
-
             WebApplication app = builder.Build();
 
             // Get AppSettings section from the json file
             IConfigurationSection appSettings = app.Configuration.GetSection(applicationSettings_SectionName);
 
-            // Enable system tray icon
+            // Enable system tray icon if specified in the json file
             bool showSystemTrayIcon = appSettings["ShowSystemTrayIcon"]?.ToLower() == "true";
             if (showSystemTrayIcon)
             {
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
-                ApplicationContext context = new ApplicationContext();
-                ShowSystemTrayIcon();
-                Application.Run(context);
+                // Create a custom application context to handle the system tray icon separately
+                var customContext = new CustomApplicationContext(app);
+                Application.Run(customContext);
             }
-
-            // Set up the web app
-            ConfigureEndpoints(app);
-
-            Thread thread = new Thread(() =>
+            else
             {
+                // If no system tray icon, just run the web app directly
+                ConfigureEndpoints(app);
                 app.Run();
-            });
-            thread.Start();
-
+            }
         }
         // ----------------------------------------------------------------
 
 
         // -------------------- Windows related methods -------------------
 
-        // Show the system tray icon
-        static void ShowSystemTrayIcon()
+        // CustomApplicationContext class to handle the system tray icon
+        public class CustomApplicationContext : ApplicationContext
         {
-            // Create the NotifyIcon.
-            NotifyIcon notifyIcon = new NotifyIcon();
-            notifyIcon.Visible = true;
+            private NotifyIcon notifyIcon;
+            private WebApplication webApp;
+            private CancellationTokenSource cancellationTokenSource;
 
-            // Set the icon from the application's executable
-            notifyIcon.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+            public CustomApplicationContext(WebApplication app)
+            {
+                webApp = app;
+                cancellationTokenSource = new CancellationTokenSource();
 
-            // The ContextMenu property sets the menu that will appear when the systray icon is right clicked.
-            notifyIcon.ContextMenuStrip = new ContextMenuStrip();
-            notifyIcon.ContextMenuStrip.Items.Add(new ToolStripMenuItem("Exit", null, (s, e) => { Environment.Exit(0); }));
+                // Configure the web app
+                ConfigureEndpoints(webApp);
+
+                // Initialize NotifyIcon
+                notifyIcon = new NotifyIcon()
+                {
+                    Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath),
+                    Visible = true,
+                    ContextMenuStrip = new ContextMenuStrip()
+                };
+
+                // Add menu items
+                notifyIcon.ContextMenuStrip.Items.Add("Exit", null, Exit);
+
+                // Start web application in background
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await webApp.RunAsync(cancellationTokenSource.Token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Normal shutdown, no need to handle
+                    }
+                });
+            }
+
+            private void Exit(object? sender, EventArgs e)
+            {
+                // Hide tray icon immediately
+                notifyIcon.Visible = false;
+
+                // Cancel web application
+                cancellationTokenSource.Cancel();
+
+                // Cleanup
+                notifyIcon.Dispose();
+
+                // Exit the application context
+                Application.Exit();
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    notifyIcon?.Dispose();
+                    cancellationTokenSource?.Dispose();
+                }
+                base.Dispose(disposing);
+            }
         }
 
         // --------------------- Web App Configuration -------------------
