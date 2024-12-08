@@ -42,9 +42,11 @@ namespace RainmeterWebhookMonitor
         [STAThread] // Set the application to use STA threading model
         public static void Main(string[] args)
         {
-            ProcessLaunchArgs(args);
-
+            // Set the current working directory to the directory of the executable
+            Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
             Debug.WriteLine($"Current directory: {Directory.GetCurrentDirectory()}");
+
+            ProcessLaunchArgs(args);
 
             // Check if the json file exists, if not, create it from the embedded resource
             if (!File.Exists(appConfigJsonName))
