@@ -100,7 +100,7 @@ namespace RainmeterWebhookMonitor
         private WndProcDelegate newWndProc;
         private IntPtr defaultWndProc;
 
-        public void InitializeContextMenu()
+        public void InitializeContextMenu(IntPtr hwnd)
         {
             //this.InitializeComponent();
 
@@ -113,11 +113,9 @@ namespace RainmeterWebhookMonitor
             //InitializeNotifyIcon();
 
             // Set up window message handling
-            //newWndProc = new WndProcDelegate(WndProc);
-            //defaultWndProc = GetWindowLongPtr(hwnd, GWLP_WNDPROC);
-            //SetWindowLongPtr(hwnd, GWLP_WNDPROC,
-            //Marshal.GetFunctionPointerForDelegate(newWndProc));
-               
+            newWndProc = new WndProcDelegate(WndProc);
+            defaultWndProc = GetWindowLongPtr(hwnd, GWLP_WNDPROC);
+            SetWindowLongPtr(hwnd, GWLP_WNDPROC, Marshal.GetFunctionPointerForDelegate(newWndProc));
         }
 
         public IntPtr InitializeNotifyIcon(IntPtr hwnd)
@@ -155,9 +153,10 @@ namespace RainmeterWebhookMonitor
             notifyIcon.uVersion = NOTIFYICON_VERSION;
             Shell_NotifyIcon(NIM_SETVERSION, ref notifyIcon);
 
+            InitializeContextMenu(hwnd);
+
             return hwnd;
         }
-
 
         private void ExitApplication()
         {
@@ -174,13 +173,40 @@ namespace RainmeterWebhookMonitor
 
         private const int WM_CLOSE = 0x0010;  // Add this to the constants
 
+        private IntPtr WndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
+        {
+            if (msg == WM_TRAYICON)
+            {
+                uint lparam = (uint)lParam.ToInt64();
+                // On left clicking the tray icon
+                if (lparam == WM_LBUTTONUP)
+                {
+                    //RestoreFromTray();
+                    return IntPtr.Zero;
+                }
+                // On right clicking the tray icon
+                else if (lparam == WM_RBUTTONUP)
+                {
+                    CustomContextMenu.CreateAndShowMenu(hwnd);
+                    return IntPtr.Zero;
+                }
+            }
+            // If the main window is closed, minimize to tray
+            //else if (msg == WM_CLOSE)
+            //{
+            //    // Intercept window close
+            //    MinimizeToTray();
+            //    return IntPtr.Zero;
+            //}
+
+            return DefWindowProc(hwnd, msg, wParam, lParam);
+        }
 
         private IntPtr GetWindowHandle()
         {
             var windowNative = this.As<IWindowNative>();
             return windowNative.WindowHandle;
         }
-
     }
 
     [ComImport]
