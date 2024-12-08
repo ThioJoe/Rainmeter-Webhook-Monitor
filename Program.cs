@@ -14,7 +14,9 @@ namespace RainmeterWebhookMonitor
 {
     public class Program
     {
-        const string appConfigJsonName = "appsettings.json";
+        const string appConfigJsonStem = "appsettings";
+        static readonly string appConfigTemplateJsonName = $"{appConfigJsonStem}_template.json";
+        static readonly string appConfigJsonName = $"{appConfigJsonStem}.json";
 
         // App settings names in the json file
         const string commandDelay_SettingName = "Delay_Between_Multiple_Commands_ms";
@@ -36,9 +38,21 @@ namespace RainmeterWebhookMonitor
         const string optionName_SettingName = "OptionName";
 
 
+        // ----------------------------- MAIN -----------------------------
         [STAThread] // Set the application to use STA threading model
         public static void Main(string[] args)
         {
+            ProcessLaunchArgs(args);
+
+            Debug.WriteLine($"Current directory: {Directory.GetCurrentDirectory()}");
+
+            // Check if the json file exists, if not, create it from the embedded resource
+            if (!File.Exists(appConfigJsonName))
+            {
+                WriteTemplateJsonFile_FromEmbeddedResource($"RainmeterWebhookMonitor.Assets.{appConfigTemplateJsonName}");
+                Console.WriteLine($"Created {appConfigJsonName} template file from embedded resource.");
+            }
+
             WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
             ConfigureWebApp(builder);
 
@@ -52,13 +66,14 @@ namespace RainmeterWebhookMonitor
             thread.Start();
 
         }
+        // ----------------------------------------------------------------
 
         static void ConfigureWebApp(WebApplicationBuilder builder)
         {
             builder.Logging.ClearProviders();
             builder.Logging.AddConsole();
             builder.Logging.AddDebug();
-            builder.Configuration.AddJsonFile(appConfigJsonName, optional: true, reloadOnChange: true);
+            builder.Configuration.AddJsonFile(appConfigJsonName, optional: false, reloadOnChange: true);
         }
 
         static IResult LogProblemToConsoleAndDebug(string message)
@@ -88,7 +103,7 @@ namespace RainmeterWebhookMonitor
 
                 //List<string> commandsList = rainmeterSettings.GetSection(commandsListSettingName).Get<List<string>>() ?? new List<string>();
                 // Get each path within the section
-                List<IConfigurationSection> commandsList = (List < IConfigurationSection > )rainmeterSettings.GetSection(commandsList_SettingName).GetChildren();
+                List<IConfigurationSection> commandsList = (List<IConfigurationSection>)rainmeterSettings.GetSection(commandsList_SettingName).GetChildren();
 
                 if (commandsList.Count == 0)
                     return LogProblemToConsoleAndDebug($"Error: Command list is empty in {appConfigJsonName} file");
@@ -110,7 +125,7 @@ namespace RainmeterWebhookMonitor
                         string? paramValue = http.Request.Query[queryParam];
                         if (paramValue == null) // Empty string is ok but null is not
                             return LogProblemToConsoleAndDebug($"Error: Query parameter ({queryParam}) not found in the received webhook message. It wasn't simply an empty string result, it was apparently not included at all. Did you specified the right parameter in {appConfigJsonName}?");
-                        
+
                         queryParamResults[queryParam] = paramValue;
                         matchedCommandSets.Add(commandSettings);
 
@@ -234,6 +249,48 @@ namespace RainmeterWebhookMonitor
                 return $"{bangCommand} {measureName} {optionName} {value} {skinConfigName}";
             else
                 return $"\"{rainmeterPath}\" {bangCommand} {measureName} {optionName} {value} {skinConfigName}";
+        }
+
+        static void WriteTemplateJsonFile_FromEmbeddedResource(string resourceName)
+        {
+            // Get the embedded resource
+            using Stream? stream = typeof(Program).Assembly.GetManifestResourceStream(resourceName);
+            if (stream == null)
+            {
+                Console.WriteLine("Error: Embedded resource not found.");
+                return;
+            }
+
+            // If the file name already exists, append a number to the end of the file name to avoid overwriting
+            int fileNumber = 1;
+            string newFileName = appConfigJsonName;
+            while (File.Exists(newFileName))
+            {
+                fileNumber++;
+                newFileName = $"{appConfigJsonStem}_{fileNumber}.json";
+            }
+
+            // Get current directory path of the exe
+            string outputFilePath = Path.Combine(Directory.GetCurrentDirectory(), newFileName);
+
+            // Write the embedded resource to a file
+            using FileStream fileStream = new(newFileName, FileMode.Create);
+            stream.CopyTo(fileStream);
+        }
+
+        static void ProcessLaunchArgs(string[] args)
+        {
+            if (args.Length > 0)
+            {
+                foreach (string arg in args)
+                {
+                    if (arg.ToLower() == "-template" || arg.ToLower() == "/template")
+                    {
+                        WriteTemplateJsonFile_FromEmbeddedResource("RainmeterWebhookMonitor.appsettings.json");
+                        Console.WriteLine($"Created {appConfigJsonName} template file from embedded resource.");
+                    }
+                }
+            }
         }
     }
 }
