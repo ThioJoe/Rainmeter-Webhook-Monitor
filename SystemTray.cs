@@ -113,13 +113,11 @@ namespace RainmeterWebhookMonitor
             //InitializeNotifyIcon();
 
             // Set up window message handling
-            //Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread().TryEnqueue(() =>
-            //{
-            //    newWndProc = new WndProcDelegate(WndProc);
-            //    defaultWndProc = GetWindowLongPtr(hwnd, GWLP_WNDPROC);
-            //    SetWindowLongPtr(hwnd, GWLP_WNDPROC,
-            //        Marshal.GetFunctionPointerForDelegate(newWndProc));
-            //});
+            //newWndProc = new WndProcDelegate(WndProc);
+            //defaultWndProc = GetWindowLongPtr(hwnd, GWLP_WNDPROC);
+            //SetWindowLongPtr(hwnd, GWLP_WNDPROC,
+            //Marshal.GetFunctionPointerForDelegate(newWndProc));
+               
         }
 
         public IntPtr InitializeNotifyIcon(IntPtr hwnd)
@@ -175,37 +173,6 @@ namespace RainmeterWebhookMonitor
         private delegate IntPtr WndProcDelegate(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
 
         private const int WM_CLOSE = 0x0010;  // Add this to the constants
-
-
-        //private void ShowTrayContextMenu()
-        //{
-        //    var menu = new MenuFlyout();
-        //    var restoreItem = new MenuFlyoutItem { Text = "Restore" };
-        //    restoreItem.Click += (s, e) => RestoreFromTray();
-        //    var exitItem = new MenuFlyoutItem { Text = "Exit" };
-        //    exitItem.Click += (s, e) => ExitApplication();
-
-        //    menu.Items.Add(restoreItem);
-        //    menu.Items.Add(exitItem);
-
-        //    // Get cursor position
-        //    GetCursorPos(out POINT mousePoint);
-
-        //    // Get the window's content as XamlRoot
-        //    var rootElement = Content as UIElement;
-        //    if (rootElement != null)
-        //    {
-        //        menu.XamlRoot = rootElement.XamlRoot;
-
-        //        // Convert screen coordinates to XamlRoot coordinates
-        //        var transform = rootElement.TransformToVisual(null);
-        //        var pointInApp = transform.TransformPoint(new Point(mousePoint.X, mousePoint.Y));
-
-        //        menu.ShowAt(null, pointInApp);
-        //        menu.ShouldConstrainToRootBounds = false;
-        //        menu.Placement = FlyoutPlacementMode.Bottom;
-        //    }
-        //}
 
 
         private IntPtr GetWindowHandle()

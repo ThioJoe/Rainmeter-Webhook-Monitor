@@ -89,22 +89,22 @@ namespace RainmeterWebhookMonitor
         }
     }
 
-    //public class TestMenu
-    //{
-    //    public static void Test()
-    //    {
-    //        var menuItems = new NativeContextMenu.MenuItem[]
-    //        {
-    //            new NativeContextMenu.MenuItem("Option 1"),
-    //            new NativeContextMenu.MenuItem("Option 2"),
-    //            NativeContextMenu.MenuItem.Separator(),
-    //            new NativeContextMenu.MenuItem("Option 3")
-    //        };
+    public class CustomContextMenu
+    {
+        public static void CreateAndShowMenu(IntPtr hwnd)
+        {
+            var menuItems = new NativeContextMenu.MenuItem[]
+            {
+                new NativeContextMenu.MenuItem("Option 1"),
+                new NativeContextMenu.MenuItem("Option 2"),
+                NativeContextMenu.MenuItem.Separator(),
+                new NativeContextMenu.MenuItem("Option 3")
+            };
 
-    //        // Show menu and get selection
-    //        uint selected = NativeContextMenu.ShowContextMenu(yourWindowHandle, menuItems);
-    //    }
-    //}
+            // Show menu and get selection
+            uint selected = NativeContextMenu.ShowContextMenu(hwnd, menuItems);
+        }
+    }
 
     // Example usage:
     //public class Program

@@ -75,11 +75,11 @@ namespace RainmeterWebhookMonitor
             // Load the rest of the settings from the json file
             LoadConfigFile(app);
 
-            // Get hwnd to use for system tray icon
-            IntPtr hwnd = Process.GetCurrentProcess().MainWindowHandle;
-
+            // Get hwnd to use for system tray icon if we can
+            IntPtr hwnd = Process.GetCurrentProcess().MainWindowHandle; // Probably zero but try anyway
             SysytemTray sysytemTray = new();
-            IntPtr trayHwnd = sysytemTray.InitializeNotifyIcon(hwnd);
+            IntPtr trayHwnd = sysytemTray.InitializeNotifyIcon(hwnd); // Will return a new hidden window handle if hwnd is zero
+            CustomContextMenu.CreateAndShowMenu(trayHwnd);
 
             ConfigureEndpoints(app);
             app.Run();
