@@ -1,4 +1,5 @@
 //using static System.Net.Mime.MediaTypeNames;
+using Microsoft.Extensions.Primitives;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
@@ -18,19 +19,25 @@ namespace RainmeterWebhookMonitor
         static readonly string appConfigTemplateJsonName = $"{appConfigJsonStem}_template.json";
         public static readonly string templateConfigResource = $"RainmeterWebhookMonitor.Assets.{appConfigTemplateJsonName}";
         public static readonly string appConfigJsonName = $"{appConfigJsonStem}.json";
+
         const string debugConsoleLogFileName = "RainmeterWebhookMonitor_DebugConsoleLog.txt";
         const string debugWebhookLogFileName = "RainmeterWebhookMonitor_DebugWebhookLog.txt";
+        public static readonly string debugConsoleLogFilePath = Path.Combine(Directory.GetCurrentDirectory(), debugConsoleLogFileName);
+        public static readonly string debugWebhookLogFilePath = Path.Combine(Directory.GetCurrentDirectory(), debugWebhookLogFileName);
 
         // App settings names in the json file
         const string commandDelay_SettingName = "Delay_Between_Multiple_Commands_ms";
         const int defaultCommandDelay = 5;
         const string debugMode_SettingName = "DebugMode";
 
+        // Webhook setting names in the json file
+        const string port_SettingName = "Port";
+        const string URLPath_SettingName = "URL_Path";
+
         // Section names in the json file
         public const string webhookSettings_SectionName = "WebhookSettings";
         public const string rainmeterSettings_SectionName = "RainmeterSettings";
         public const string applicationSettings_SectionName = "ApplicationSettings";
-        const string webhookURIPath = "/rainmeter";
 
         // Settings names in the json file
         public const string rainmeterPath_SettingName = "RainmeterPath";
@@ -45,11 +52,16 @@ namespace RainmeterWebhookMonitor
         static IConfigurationSection? rainmeterSettings;
         static List<IConfigurationSection>? commandsList;
         static IConfigurationSection? appSettings;
+        static IConfigurationSection? webhookSettings;
         static string? rainmeterPath = null;
         static int commandDelay = defaultCommandDelay;
         static string? webhookURL = null;
         static bool showSystemTrayIcon = false;
+        static string webhookURLPath = "/rainmeter";
+
+        // Debug related
         static bool debugMode = false;
+        static bool debugConsoleFileLoggingAlreadyEnabled = false; // Prevents an extra trace listener from being added
 
         // Import the AllocConsole function from kernel32.dll
         [DllImport("kernel32.dll", SetLastError = true)]
@@ -80,7 +92,7 @@ namespace RainmeterWebhookMonitor
             LoadConfigFile(app);
 
             if (debugMode)
-                EnableDebugFileLogging();
+                EnableDebugConsoleFileLogging();
 
             // Run the app with or without a system tray icon depending on the settings
             if (showSystemTrayIcon)
@@ -130,14 +142,19 @@ namespace RainmeterWebhookMonitor
 
         static void ConfigureEndpoints(WebApplication app)
         {
-            app.MapPost(webhookURIPath, (HttpContext http) =>
+            app.MapPost(webhookURLPath, (HttpContext http) =>
             {
                 string? queryParam = null;
                 Dictionary<string, string> queryParamResults = [];
                 List<IConfigurationSection> matchedCommandSets = [];
+                // ------------------------------------------
+
+                // Log the raw json request before anything else
+                if (debugMode)
+                    LogWebhookRequest(http);
 
                 if (commandsList == null)
-                    return LogProblemToConsoleAndDebug("Commands list not found in json file.");
+                    return LogProblemToConsoleAndDebug("Commands list not found in json file. Skipping any processing of received request.");
 
                 // See which commands specified by the user match any query parameters in the request, and store them
                 foreach (IConfigurationSection commandSettings in commandsList)
@@ -187,7 +204,7 @@ namespace RainmeterWebhookMonitor
                     return LogProblemToConsoleAndDebug("No commands to send to Rainmeter.");
 
                 // Debug print the commands list to send to Rainmeter
-                Trace.WriteLine($"Rainmeter commands:\n{string.Join("\n\t", rainmeterCommands)}");
+                Trace.WriteLine($"Rainmeter commands:\n{string.Join("\n    ", rainmeterCommands)}");
 
                 // Send each command to Rainmeter with a delay between each one as set in the json file
                 foreach (string rainmeterCommandArgs in rainmeterCommands)
@@ -204,7 +221,7 @@ namespace RainmeterWebhookMonitor
                             UseShellExecute = false,
                             WindowStyle = ProcessWindowStyle.Hidden
                         };
-
+                        Trace.WriteLine($"Running full command:  {psi.ToString}");
                         using Process? process = Process.Start(psi);
                         // Optionally wait for the process to complete
                         // process?.WaitForExit();
@@ -283,6 +300,39 @@ namespace RainmeterWebhookMonitor
                 return $"\"{rainmeterPath}\" {bangCommand} {measureName} {optionName} {value} {skinConfigName}";
         }
 
+        // Writes log entries for the raw json requests received, regardless of matching any commands
+        static void LogWebhookRequest(HttpContext http)
+        {
+            // Get time from the request
+            string time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            string queryString = $"{http.Request.Method} {http.Request.Host}{http.Request.Path}{http.Request.QueryString}";
+
+            string t = "    "; // Indentation / tab
+            string logEntry = "" +
+                queryString + "\n" +
+                $"{t}Time: " + time + "\n" +
+                $"{t}Method: " + http.Request.Method + "\n" +
+                $"{t}Host: " + http.Request.Host + "\n" +
+                $"{t}Path: " + http.Request.Path + "\n" +
+                $"{t}Parameters: \n";
+
+            foreach (KeyValuePair<string, StringValues> queryParam in http.Request.Query)
+            {
+                logEntry += $"{t}{t}{queryParam.Key}: {queryParam.Value}\n";
+            }
+            logEntry += "\n\n--------------------------------------------------------------------------------\n\n";
+
+
+            try
+            {
+                File.AppendAllText(debugWebhookLogFilePath, logEntry);
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"Error writing webhook request log: {ex.Message}");
+            }
+        }
+
         static bool CheckJsonBoolSetting(IConfigurationSection section, string settingName, bool defaultValue)
         {
             string? setting = section[settingName];
@@ -307,21 +357,21 @@ namespace RainmeterWebhookMonitor
 
         static bool LoadConfigFile(WebApplication app)
         {
-            // Get AppSettings section from the json file
+            // Get settings sections from the json file
             appSettings = app.Configuration.GetSection(applicationSettings_SectionName);
+            rainmeterSettings = app.Configuration.GetSection(rainmeterSettings_SectionName);
+            webhookSettings = app.Configuration.GetSection(webhookSettings_SectionName);
 
             // Enable system tray icon if specified in the json file
             showSystemTrayIcon = CheckJsonBoolSetting(section: appSettings, settingName: "ShowSystemTrayIcon", defaultValue: true);
 
             debugMode = CheckJsonBoolSetting(section: appSettings, settingName: debugMode_SettingName, defaultValue: false);
 
-            // Collect user settings from the json file
-            rainmeterSettings = app.Configuration.GetSection(rainmeterSettings_SectionName);
             // Get each path within the section
             commandsList = (List<IConfigurationSection>)rainmeterSettings.GetSection(commandsList_SettingName).GetChildren();
 
             rainmeterPath = rainmeterSettings[rainmeterPath_SettingName];
-            if (rainmeterPath == null || string.IsNullOrEmpty(rainmeterPath))
+            if (rainmeterPath == null || String.IsNullOrEmpty(rainmeterPath))
             {
                 Trace.WriteLine($"Error: Rainmeter path not found in {appConfigJsonName} file");
                 return false;
@@ -333,10 +383,36 @@ namespace RainmeterWebhookMonitor
                 return false;
             }
 
+            if (webhookSettings == null)
+            {
+                Trace.WriteLine($"Error: Webhook settings not found in {appConfigJsonName} file");
+                return false;
+            }
+
             string? commandDelayString = app.Configuration[$"{applicationSettings_SectionName}:{commandDelay_SettingName}"];
             commandDelay = commandDelayString != null ? int.Parse(commandDelayString) : defaultCommandDelay;
 
-            webhookURL = $"http://localhost:{app.Configuration[$"{webhookSettings_SectionName}:Port"]}";
+            webhookURL = $"http://localhost:{app.Configuration[$"{webhookSettings_SectionName}:{port_SettingName}"]}";
+
+            // Process the URL 'path' which is the part after the port number, like '/rainmeter'
+            string? tempURLPath = webhookSettings[URLPath_SettingName];
+            if (tempURLPath == null || string.IsNullOrEmpty(tempURLPath))
+                Trace.WriteLine($"Error: Webhook URL path not found in {appConfigJsonName} file. Using \"/rainmeter\" as default.");
+            else
+            {
+                // If there's a backslash, replace with a forward slash
+                tempURLPath = tempURLPath.Replace('\\', '/');
+
+                // If there's a slash  at the end, remove it
+                if (tempURLPath.EndsWith('/'))
+                    tempURLPath = tempURLPath.Substring(0, tempURLPath.Length - 1);
+
+                // If there's no leading slash, add one
+                if (!tempURLPath.StartsWith('/'))
+                    tempURLPath = "/" + tempURLPath;
+
+                webhookURLPath = tempURLPath;
+            }
 
             return true;
 
@@ -378,13 +454,15 @@ namespace RainmeterWebhookMonitor
             }
         }
 
-        static void EnableDebugFileLogging()
+        static void EnableDebugConsoleFileLogging()
         {
-            // Set up a debug log file
-            string debugLogPath = Path.Combine(Directory.GetCurrentDirectory(), debugConsoleLogFileName);
-            Trace.Listeners.Add(new TextWriterTraceListener(debugLogPath));
-            Trace.AutoFlush = true;
-            Trace.WriteLine($"Debug log file created at: {debugLogPath}");
+            if (!debugConsoleFileLoggingAlreadyEnabled) {
+                // Set up a debug log file
+                Trace.Listeners.Add(new TextWriterTraceListener(debugConsoleLogFilePath));
+                Trace.AutoFlush = true;
+                Trace.WriteLine($"Debug log file created at: {debugConsoleLogFilePath}");
+                debugConsoleFileLoggingAlreadyEnabled = true;
+            }
         }
 
         static void ProcessLaunchArgs(string[] args)
@@ -402,7 +480,7 @@ namespace RainmeterWebhookMonitor
                     if (arg.Equals("-debug", StringComparison.OrdinalIgnoreCase) || arg.Equals("/debug", StringComparison.OrdinalIgnoreCase))
                     {
                         // Set up a debug log file
-                        EnableDebugFileLogging();
+                        EnableDebugConsoleFileLogging();
 
                         // Also enable console output via a console window
                         AllocConsole();
