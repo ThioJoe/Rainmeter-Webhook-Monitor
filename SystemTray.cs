@@ -6,7 +6,7 @@ using WinRT;
 
 namespace RainmeterWebhookMonitor
 {
-    public class SysytemTray
+    public partial class SysytemTray
     {
         // This struct tells the system how to display the tray icon and its settings
         // See: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ns-shellapi-notifyicondataw
@@ -36,26 +36,17 @@ namespace RainmeterWebhookMonitor
         [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
         static extern bool Shell_NotifyIcon(uint dwMessage, ref NOTIFYICONDATAW lpData);
 
-        [DllImport("user32.dll")]
-        static extern IntPtr LoadIcon(IntPtr hInstance, IntPtr lpIconName);
+        [LibraryImport("user32.dll")]
+        private static partial IntPtr LoadIcon(IntPtr hInstance, IntPtr lpIconName);
 
-        [DllImport("user32.dll")]
-        static extern bool GetCursorPos(out POINT lpPoint);
+        [LibraryImport("user32.dll")]
+        private static partial IntPtr DefWindowProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
 
-        [DllImport("user32.dll")]
-        static extern IntPtr DefWindowProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
+        [LibraryImport("user32.dll")]
+        private static partial IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
 
-        [DllImport("user32.dll")]
-        static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
-
-        [DllImport("user32.dll")]
-        static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
-
-        [DllImport("user32.dll")]
-        static extern IntPtr CreateIconFromResource(byte[] presbits, uint dwResSize, bool fIcon, uint dwVer);
-
-        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        static extern IntPtr CreateWindowEx(
+        [LibraryImport("user32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+        private static partial IntPtr CreateWindowEx(
             uint dwExStyle,
             string lpClassName,
             string lpWindowName,
