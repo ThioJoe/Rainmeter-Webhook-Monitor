@@ -20,8 +20,9 @@ namespace RainmeterWebhookMonitor
         public static readonly string templateConfigResource = $"RainmeterWebhookMonitor.Assets.{appConfigTemplateJsonName}";
         public static readonly string appConfigJsonName = $"{appConfigJsonStem}.json";
 
-        const string debugConsoleLogFileName = "RainmeterWebhookMonitor_DebugConsoleLog.txt";
-        const string debugWebhookLogFileName = "RainmeterWebhookMonitor_DebugWebhookLog.txt";
+        private static readonly string timestamp = DateTime.Now.ToString("MM-dd_HH-mm-ss");
+        public static readonly string debugConsoleLogFileName = $"RainmeterWebhookMonitor_DebugConsoleLog_{timestamp}.txt";
+        public static readonly string debugWebhookLogFileName = $"RainmeterWebhookMonitor_DebugWebhookLog_{timestamp}.txt";
         public static readonly string debugConsoleLogFilePath = Path.Combine(Directory.GetCurrentDirectory(), debugConsoleLogFileName);
         public static readonly string debugWebhookLogFilePath = Path.Combine(Directory.GetCurrentDirectory(), debugWebhookLogFileName);
 
@@ -204,7 +205,7 @@ namespace RainmeterWebhookMonitor
                     return LogProblemToConsoleAndDebug("No commands to send to Rainmeter.");
 
                 // Debug print the commands list to send to Rainmeter
-                Trace.WriteLine($"Rainmeter commands:\n{string.Join("\n    ", rainmeterCommands)}");
+                Trace.WriteLine($"Rainmeter commands:\n    {string.Join("\n    ", rainmeterCommands)}");
 
                 // Send each command to Rainmeter with a delay between each one as set in the json file
                 foreach (string rainmeterCommandArgs in rainmeterCommands)
@@ -221,7 +222,7 @@ namespace RainmeterWebhookMonitor
                             UseShellExecute = false,
                             WindowStyle = ProcessWindowStyle.Hidden
                         };
-                        Trace.WriteLine($"Running full command:  {psi.ToString}");
+                        Trace.WriteLine($"Full command:  {psi.FileName} {psi.Arguments}");
                         using Process? process = Process.Start(psi);
                         // Optionally wait for the process to complete
                         // process?.WaitForExit();
