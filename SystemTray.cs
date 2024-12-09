@@ -7,6 +7,7 @@ using Microsoft.UI;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using Windows.UI.WindowManagement;
 using System.Windows;
+using System.Diagnostics;
 
 namespace RainmeterWebhookMonitor
 {
@@ -102,15 +103,10 @@ namespace RainmeterWebhookMonitor
 
         public void InitializeContextMenu(IntPtr hwnd)
         {
-            //this.InitializeComponent();
-
             //// Get the window handle
             //hwnd = GetWindowHandle();
             //windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
             //appWindow = AppWindow.GetFromWindowId(windowId);
-
-            // Initialize tray icon
-            //InitializeNotifyIcon();
 
             // Set up window message handling
             newWndProc = new WndProcDelegate(WndProc);
@@ -139,7 +135,7 @@ namespace RainmeterWebhookMonitor
             notifyIcon.hIcon = hIcon;
 
             // Set tooltip
-            notifyIcon.szTip = "My WinUI3 App";
+            notifyIcon.szTip = "Rainmeter Webhook Monitor";
 
             // Add the icon
             if (!Shell_NotifyIcon(NIM_ADD, ref notifyIcon))
@@ -156,17 +152,6 @@ namespace RainmeterWebhookMonitor
             InitializeContextMenu(hwnd);
 
             return hwnd;
-        }
-
-        private void ExitApplication()
-        {
-            Shell_NotifyIcon(NIM_DELETE, ref notifyIcon);
-
-            if (defaultWndProc != IntPtr.Zero)
-            {
-                SetWindowLongPtr(hwnd, GWLP_WNDPROC, defaultWndProc);
-            }
-            //Application.Current.Exit();
         }
 
         private delegate IntPtr WndProcDelegate(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
@@ -188,6 +173,12 @@ namespace RainmeterWebhookMonitor
                 else if (lparam == WM_RBUTTONUP)
                 {
                     CustomContextMenu.CreateAndShowMenu(hwnd);
+                    return IntPtr.Zero;
+                }
+                // On losing focus
+                else if (lparam == 0x0008)
+                {
+                    Debug.WriteLine("Lost focus");
                     return IntPtr.Zero;
                 }
             }

@@ -1,6 +1,11 @@
 ﻿using System;
+using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography.X509Certificates;
+using System.Windows;
 using System.Windows.Forms;
+using static RainmeterWebhookMonitor.NativeContextMenu;
 
 namespace RainmeterWebhookMonitor
 {
@@ -11,6 +16,8 @@ namespace RainmeterWebhookMonitor
         private const uint TPM_RETURNCMD = 0x0100;
         private const uint MF_STRING = 0x00000000;
         private const uint MF_SEPARATOR = 0x00000800;
+        private const uint TPM_RIGHTBUTTON = 0x0002;
+        private const uint TPM_LEFTBUTTON = 0x0000;
 
         // Win32 API structures
         [StructLayout(LayoutKind.Sequential)]
@@ -34,8 +41,10 @@ namespace RainmeterWebhookMonitor
         private static extern bool GetCursorPos(out POINT lpPoint);
 
         [DllImport("user32.dll")]
-        private static extern uint TrackPopupMenu(IntPtr hMenu, uint uFlags, int x, int y,
-            int nReserved, IntPtr hwnd, IntPtr lprc);
+        private static extern uint TrackPopupMenu(IntPtr hMenu, uint uFlags, int x, int y, int nReserved, IntPtr hwnd, IntPtr lprc);
+
+        [DllImport("user32.dll")]
+        static extern bool SetForegroundWindow(IntPtr hWnd);
 
         public static uint ShowContextMenu(IntPtr hwnd, MenuItem[] menuItems)
         {
@@ -57,13 +66,16 @@ namespace RainmeterWebhookMonitor
                 itemId++;
             }
 
-            // Get the current cursor position
+            // Get the current cursor position to display the menu at that location
             POINT pt;
             GetCursorPos(out pt);
 
-            // Show the menu and get the clicked item
-            uint clickedItem = TrackPopupMenu(hMenu, TPM_RETURNCMD | TPM_LEFTALIGN,
-                pt.X, pt.Y, 0, hwnd, IntPtr.Zero);
+            // This is necessary to ensure the menu will close when the user clicks elsewhere
+            SetForegroundWindow(hwnd);
+
+            // Tells the OS to show the context menu and wait for a selection. But if the user clicks elsewhere, it will return 0.
+            uint flags = TPM_RIGHTBUTTON | TPM_LEFTBUTTON | TPM_RETURNCMD;
+            uint clickedItem = TrackPopupMenu(hMenu, flags, pt.X, pt.Y, 0, hwnd, IntPtr.Zero);
 
             // Clean up
             DestroyMenu(hMenu);
@@ -75,66 +87,119 @@ namespace RainmeterWebhookMonitor
         {
             public string Text { get; set; }
             public bool IsSeparator { get; set; }
+            public int Index { get; set; } // The index should be 1-based
 
-            public MenuItem(string text)
+            public MenuItem(string text, int index)
             {
                 Text = text;
                 IsSeparator = false;
+                Index = index;
             }
 
-            public static MenuItem Separator()
+            public static MenuItem Separator(int index)
             {
-                return new MenuItem(string.Empty) { IsSeparator = true };
+                return new MenuItem(string.Empty, index) { IsSeparator = true };
+            }
+        }
+
+        public class MenuItemSet
+        {
+            private List<MenuItem> _menuItems = new List<MenuItem>();
+
+            public void AddMenuItem(string text)
+            {
+                _menuItems.Add(new MenuItem(text, _menuItems.Count + 1)); // 1-based index because 0 is reserved for no selection
+            }
+
+            public void AddSeparator()
+            {
+                _menuItems.Add(MenuItem.Separator(_menuItems.Count + 1)); // 1-based index because 0 is reserved for no selection
+            }
+
+            public MenuItem[] GetMenuItems()
+            {
+                return _menuItems.ToArray();
+            }
+
+            public int GetMenuItemIndex_ByText(string text)
+            {
+                return _menuItems.FindIndex(x => x.Text == text);
+            }
+
+            public string? GetMenuItemText_ByIndex(int index)
+            {
+                return _menuItems.Find(x => x.Index == index)?.Text;
             }
         }
     }
 
     public class CustomContextMenu
     {
+        private static class MenuItemNames
+        {
+            public const string OpenConfigFile = "Open Config File";
+            public const string ReloadConfig = "Reload Config";
+            public const string Exit = "Exit";
+        }
+
         public static void CreateAndShowMenu(IntPtr hwnd)
         {
-            var menuItems = new NativeContextMenu.MenuItem[]
-            {
-                new NativeContextMenu.MenuItem("Option 1"),
-                new NativeContextMenu.MenuItem("Option 2"),
-                NativeContextMenu.MenuItem.Separator(),
-                new NativeContextMenu.MenuItem("Option 3")
-            };
+            var menuItemSet = new NativeContextMenu.MenuItemSet();
+            menuItemSet.AddMenuItem(MenuItemNames.OpenConfigFile);
+            menuItemSet.AddMenuItem(MenuItemNames.ReloadConfig);
+            menuItemSet.AddSeparator();
+            menuItemSet.AddMenuItem(MenuItemNames.Exit);
 
             // Show menu and get selection
-            uint selected = NativeContextMenu.ShowContextMenu(hwnd, menuItems);
+            uint selected = NativeContextMenu.ShowContextMenu(hwnd, menuItemSet.GetMenuItems());
+
+            // Handle the selected item
+            if (selected > 0)
+            {
+                string? selectedText = menuItemSet.GetMenuItemText_ByIndex((int)selected);
+                Console.WriteLine($"Selected: {selectedText}");
+
+                //Call the appropriate function based on the selected menu item
+                switch (selectedText)
+                {
+                    case MenuItemNames.OpenConfigFile:
+                        Program.OpenConfigFile();
+                        break;
+                    case MenuItemNames.ReloadConfig:
+                        RestartApplication();
+                        break;
+                    case MenuItemNames.Exit:
+                        ExitApplication();
+                        break;
+                    case null:
+                        Console.WriteLine("Error: Selected item not found.");
+                        break;
+                    default:
+                        Console.WriteLine("Error: Selected item not handled.");
+                        break;
+                }
+            }
         }
+
+        public static void RestartApplication()
+        {
+            // Restart the application
+            string? executablePath = Environment.ProcessPath;
+            if (executablePath == null)
+            {
+                Console.WriteLine("Error: Executable path not found.");
+                return;
+            }
+            Process.Start(executablePath);
+            Environment.Exit(0);
+        }
+
+        public static void ExitApplication()
+        {
+            // Logic to exit the application
+            Console.WriteLine("Exiting application...");
+            Environment.Exit(0);
+        }
+
     }
-
-    // Example usage:
-    //public class Program
-    //{
-    //    [STAThread]
-    //    public static void Main()
-    //    {
-    //        // Create a basic window to host the context menu
-    //        var form = new NativeWindow();
-    //        form.CreateHandle(new CreateParams());
-
-    //        // Define menu items
-    //        var menuItems = new NativeContextMenu.MenuItem[]
-    //        {
-    //        new NativeContextMenu.MenuItem("Copy"),
-    //        new NativeContextMenu.MenuItem("Cut"),
-    //        new NativeContextMenu.MenuItem("Paste"),
-    //        NativeContextMenu.MenuItem.Separator(),
-    //        new NativeContextMenu.MenuItem("Delete")
-    //        };
-
-    //        // Show the context menu and get the selected item
-    //        uint selectedItem = NativeContextMenu.ShowContextMenu(form.Handle, menuItems);
-
-    //        // Handle the selected item
-    //        if (selectedItem > 0)
-    //        {
-    //            string selectedText = menuItems[selectedItem - 1].Text;
-    //            Console.WriteLine($"Selected: {selectedText}");
-    //        }
-    //    }
-    //}
 }

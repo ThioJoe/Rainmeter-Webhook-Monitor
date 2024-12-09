@@ -21,7 +21,7 @@ namespace RainmeterWebhookMonitor
         // File names
         const string appConfigJsonStem = "appsettings";
         static readonly string appConfigTemplateJsonName = $"{appConfigJsonStem}_template.json";
-        static readonly string appConfigJsonName = $"{appConfigJsonStem}.json";
+        public static readonly string appConfigJsonName = $"{appConfigJsonStem}.json";
         const string debugLogFileName = "RainmeterWebhookMonitor_DebugLog.txt";
 
         // App settings names in the json file
@@ -75,34 +75,47 @@ namespace RainmeterWebhookMonitor
             // Load the rest of the settings from the json file
             LoadConfigFile(app);
 
-            // Get hwnd to use for system tray icon if we can
-            IntPtr hwnd = Process.GetCurrentProcess().MainWindowHandle; // Probably zero but try anyway
-            SysytemTray sysytemTray = new();
-            IntPtr trayHwnd = sysytemTray.InitializeNotifyIcon(hwnd); // Will return a new hidden window handle if hwnd is zero
+            // Run the app with or without a system tray icon depending on the settings
+            if (showSystemTrayIcon)
+            {
+                // Get hwnd to use for system tray icon if we can
+                IntPtr hwnd = Process.GetCurrentProcess().MainWindowHandle; // Probably zero but try anyway
+                SysytemTray sysytemTray = new();
+                IntPtr trayHwnd = sysytemTray.InitializeNotifyIcon(hwnd); // Will return a new hidden window handle if hwnd is zero
 
-            ConfigureEndpoints(app);
-            app.Run();
-
-            
-
-            //// Run the app with or without a system tray icon depending on the settings
-            //if (showSystemTrayIcon)
-            //{
-            //    Application.EnableVisualStyles();
-            //    Application.SetCompatibleTextRenderingDefault(false);
-            //    // Create a custom application context to handle the system tray icon separately
-            //    var customContext = new CustomApplicationContext(app);
-            //    Application.Run(customContext);
-            //}
-            //else
-            //{
-            //    // If no system tray icon, just run the web app directly
-            //    ConfigureEndpoints(app);
-            //    app.Run();
-            //}
+                // If no system tray icon, just run the web app directly
+                ConfigureEndpoints(app);
+                app.Run();
+            }
+            else
+            {
+                // If no system tray icon, just run the web app directly
+                ConfigureEndpoints(app);
+                app.Run();
+            }
         }
         // -------------------------- End of Main -------------------------------
 
+        public static void OpenConfigFile()
+        {
+            string configFilePath = Path.Combine(Directory.GetCurrentDirectory(), appConfigJsonName);
+            try
+            {
+                Process.Start(new ProcessStartInfo(configFilePath) { UseShellExecute = true });
+            }
+            catch (System.ComponentModel.Win32Exception ex)
+            {
+                // If there is no association, try opening with Notepad
+                if (ex.NativeErrorCode == 1155) // ERROR_NO_ASSOCIATION
+                {
+                    Process.Start(new ProcessStartInfo("notepad.exe", configFilePath) { UseShellExecute = true });
+                }
+                else
+                {
+                    Console.WriteLine($"Error opening config file: {ex.Message}");
+                }
+            }
+        }
 
         // -------------------- Windows related methods -------------------
 
