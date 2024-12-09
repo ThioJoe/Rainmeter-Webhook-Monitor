@@ -12,6 +12,8 @@ To update the text of Rainmeter skins with info from a webhook message.
 - Uses a json config file to allow multiple sets of possible commands
 - Each command set can be triggered by a different parameter name in the webhook
 - Optional debug mode which shows a console with debug output
+- Release executables signed with [EV code signing certificate](https://en.wikipedia.org/wiki/Extended_Validation_Certificate)
+   - (No pop up from Windows about untrusted software)
 
 ## Lightweight
 
