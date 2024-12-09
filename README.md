@@ -13,6 +13,16 @@ To update the text of Rainmeter skins with info from a webhook message.
 - Each command set can be triggered by a different parameter name in the webhook
 - Optional debug mode which shows a console with debug output
 
+## Lightweight
+
+Resource usage is only ~10 MB of RAM.
+
+<p align="center">
+<img src="https://github.com/user-attachments/assets/0380155e-9815-4eef-9e8b-93f34b49cce3">
+</p>
+
+Note: Though the exe itself is a bit large at ~60MB, that is because it was built with the Microsoft's .NET 8 framework and compiled with "single file" mode, and therefore contains embedded versions of any dependent .NET 8 libraries. That is so the system does not need the entire .NET 8 framework installed for it to work, but results in a larger file.
+
 ## How to Download
 
 - Go to the [Releases page](https://github.com/ThioJoe/Rainmeter-Webhook-Monitor/releases) (link also found on the right side of the page)
@@ -34,7 +44,7 @@ To update the text of Rainmeter skins with info from a webhook message.
 The `Commands` section of the config file is a list of groups of settings, each group between curly braces `{ }`. Each group represents a separate command that can be triggered by a webhook and its settings. The following properties are available for each command object:
 
 - `WebhookParameterToUseAsValue`: This is the name of the parameter in the webhook message that will be used as the value for the Rainmeter command. For example, if your webhook message contains a parameter called "temperature", you would set this property to "temperature".
-   - Tip: If you're not sure what parameter names a webhook is using, you can set `DebugMode` to true in the config to log incoming webhook requests and see what they contain.
+   - **Tip:** If you're not sure what parameter names a webhook is using, you can set `DebugMode` to true in the config to log incoming webhook requests and see what they contain.
 - `BangCommand`: This is the Rainmeter bang command that will be executed. The program is intended to be used with `SetOption` and `SetVariable` but theoretically should work with any bang command.
 - `MeasureName`: If you are using the "SetOption" bang command, this is the name of the measure that you want to set the option for. (Appears as 1st argument after the bang command)
 - `OptionName`: If you are using the "SetOption" bang command, this is the name of the option that you want to set. (Appears as 2nd argument after the bang command)
@@ -58,10 +68,11 @@ You can have multiple command objects in the `Commands` array. Each object will 
             }
 ```
 
-- In the F.lux program the output settings look like this. It's not visible here but the Flux program sends the color temperature value as a parameter called `ct` in its webhook request, which corresponds to the `WebhookParameterToUseAsValue` setting in the json.
+- For my case, in the F.lux program the output settings look like this. It's not visible here, but the Flux program sends the color temperature value as a parameter called `ct` in its webhook request, which corresponds to the `WebhookParameterToUseAsValue` setting in the json.
 
+<p align="center">
 <img width="500" alt="image" src="https://github.com/user-attachments/assets/c2536af4-8826-4d83-beea-7c0f7620181e">
-
+</p>
 
 
 - My skin is called `ShowFluxTemp` and which uses `ShowFluxTemp.ini`. This corresponds to the `SkinConfigName` setting in the json. In the Rainmeter skin's `.ini` file there is this measure section. Notice how this corresponds to the `MeasureName` and `OptionName` settings in the json.
@@ -85,8 +96,9 @@ Text="%1K"
 
 If the system tray icon is enabled in the config, it will look like this, and have a few options in the right click menu. There is no other GUI.
 
-![image](https://github.com/user-attachments/assets/c9826991-60ce-4321-bc91-189fa38cb8f5)
-
+<p align="center">
+<img src="https://github.com/user-attachments/assets/c9826991-60ce-4321-bc91-189fa38cb8f5">
+</p>
 
 ## Command Line Arguments
 
