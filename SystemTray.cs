@@ -8,11 +8,14 @@ using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using Windows.UI.WindowManagement;
 using System.Windows;
 using System.Diagnostics;
+using System.Drawing;
 
 namespace RainmeterWebhookMonitor
 {
     public class SysytemTray
     {
+        // This struct tells the system how to display the tray icon and its settings
+        // See: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ns-shellapi-notifyicondataw
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         public struct NOTIFYICONDATAW
         {
@@ -114,7 +117,13 @@ namespace RainmeterWebhookMonitor
             SetWindowLongPtr(hwnd, GWLP_WNDPROC, Marshal.GetFunctionPointerForDelegate(newWndProc));
         }
 
+        // Overload for initializing the tray while automatically getting the tray icon from the current process
         public IntPtr InitializeNotifyIcon(IntPtr hwnd)
+        {
+            return InitializeNotifyIcon(hwnd, IntPtr.Zero);
+        }
+
+        public IntPtr InitializeNotifyIcon(IntPtr hwnd, IntPtr hIcon)
         {
             notifyIcon = new NOTIFYICONDATAW();
             notifyIcon.cbSize = (uint)Marshal.SizeOf(typeof(NOTIFYICONDATAW));
@@ -130,12 +139,29 @@ namespace RainmeterWebhookMonitor
                 notifyIcon.hWnd = hwnd;
             }
 
-            // Load default application icon
-            IntPtr hIcon = LoadIcon(IntPtr.Zero, (IntPtr)32512); // IDI_APPLICATION
-            notifyIcon.hIcon = hIcon;
+            // If no icon handle is provided, try to load it from the current process, otherwise use default app icon
+            if (hIcon == IntPtr.Zero)
+            {
+                // Gets the path to the current process
+                string? exePath = Environment.ProcessPath;
+                if (exePath != null)
+                {
+                    Icon? appIcon = Icon.ExtractAssociatedIcon(exePath);
+                    if (appIcon != null)
+                    {
+                        hIcon = appIcon.Handle;
+                    }
+                }
+                // If it's still null, load the default icon
+                if (hIcon == IntPtr.Zero)
+                {
+                    hIcon = LoadIcon(IntPtr.Zero, (IntPtr)32512); // IDI_APPLICATION
+                }
+            }
 
-            // Set tooltip
-            notifyIcon.szTip = "Rainmeter Webhook Monitor";
+            // Set properties of the tray icon
+            notifyIcon.szTip = "Rainmeter Webhook Monitor"; // Tooltip
+            notifyIcon.hIcon = hIcon; // Icon
 
             // Add the icon
             if (!Shell_NotifyIcon(NIM_ADD, ref notifyIcon))

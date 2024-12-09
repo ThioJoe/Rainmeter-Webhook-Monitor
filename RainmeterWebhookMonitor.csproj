@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
 	<UseWindowsForms>False</UseWindowsForms>
 	<ApplicationIcon>Assets\RainmeterWebhook.ico</ApplicationIcon>
-	<UseWPF>True</UseWPF>
+	<UseWPF>False</UseWPF>
   </PropertyGroup>
 
   <ItemGroup>

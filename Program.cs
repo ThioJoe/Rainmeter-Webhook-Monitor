@@ -4,10 +4,11 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.IO;
 using System.Threading;
-using static System.Net.Mime.MediaTypeNames;
+//using static System.Net.Mime.MediaTypeNames;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Drawing;
 
 #nullable enable
 #pragma warning disable IDE0028 // Simplify collection initialization. Some places it's clearer to use new() instead of []
@@ -78,6 +79,15 @@ namespace RainmeterWebhookMonitor
             // Run the app with or without a system tray icon depending on the settings
             if (showSystemTrayIcon)
             {
+                // Get handle to the icon
+                // Extract the icon associated with the executable
+                // Get the path to the current exe
+                string exePath = Process.GetCurrentProcess().MainModule.FileName;
+                Icon appIcon = Icon.ExtractAssociatedIcon(exePath);
+
+                // Use the icon handle
+                IntPtr iconHandle = appIcon.Handle;
+
                 // Get hwnd to use for system tray icon if we can
                 IntPtr hwnd = Process.GetCurrentProcess().MainWindowHandle; // Probably zero but try anyway
                 SysytemTray sysytemTray = new();
