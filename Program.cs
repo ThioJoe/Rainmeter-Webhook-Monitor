@@ -18,11 +18,13 @@ namespace RainmeterWebhookMonitor
         static readonly string appConfigTemplateJsonName = $"{appConfigJsonStem}_template.json";
         public static readonly string templateConfigResource = $"RainmeterWebhookMonitor.Assets.{appConfigTemplateJsonName}";
         public static readonly string appConfigJsonName = $"{appConfigJsonStem}.json";
-        const string debugLogFileName = "RainmeterWebhookMonitor_DebugLog.txt";
+        const string debugConsoleLogFileName = "RainmeterWebhookMonitor_DebugConsoleLog.txt";
+        const string debugWebhookLogFileName = "RainmeterWebhookMonitor_DebugWebhookLog.txt";
 
         // App settings names in the json file
         const string commandDelay_SettingName = "Delay_Between_Multiple_Commands_ms";
         const int defaultCommandDelay = 5;
+        const string debugMode_SettingName = "DebugMode";
 
         // Section names in the json file
         public const string webhookSettings_SectionName = "WebhookSettings";
@@ -47,6 +49,7 @@ namespace RainmeterWebhookMonitor
         static int commandDelay = defaultCommandDelay;
         static string? webhookURL = null;
         static bool showSystemTrayIcon = false;
+        static bool debugMode = false;
 
         // Import the AllocConsole function from kernel32.dll
         [DllImport("kernel32.dll", SetLastError = true)]
@@ -75,6 +78,9 @@ namespace RainmeterWebhookMonitor
 
             // Load the rest of the settings from the json file
             LoadConfigFile(app);
+
+            if (debugMode)
+                EnableDebugFileLogging();
 
             // Run the app with or without a system tray icon depending on the settings
             if (showSystemTrayIcon)
@@ -277,31 +283,37 @@ namespace RainmeterWebhookMonitor
                 return $"\"{rainmeterPath}\" {bangCommand} {measureName} {optionName} {value} {skinConfigName}";
         }
 
+        static bool CheckJsonBoolSetting(IConfigurationSection section, string settingName, bool defaultValue)
+        {
+            string? setting = section[settingName];
+            if (setting != null)
+            {
+                if (setting.Equals("true", StringComparison.OrdinalIgnoreCase))
+                    return true;
+                else if (setting.Equals("false", StringComparison.OrdinalIgnoreCase))
+                    return false;
+                else
+                {
+                    Trace.WriteLine($"Error: {settingName} setting in json file is not valid. Must be 'true' or 'false'. Defaulting to {defaultValue}");
+                    return defaultValue;
+                }
+            }
+            else
+            {
+                Trace.WriteLine($"Warning: {settingName} setting not found in json file. Defaulting to {defaultValue}.");
+                return defaultValue;
+            }
+        }
+
         static bool LoadConfigFile(WebApplication app)
         {
             // Get AppSettings section from the json file
             appSettings = app.Configuration.GetSection(applicationSettings_SectionName);
 
             // Enable system tray icon if specified in the json file
-            string? systemTrayIconSetting = appSettings["ShowSystemTrayIcon"];
-            if (systemTrayIconSetting != null)
-            {
-                if (systemTrayIconSetting.Equals("true", StringComparison.OrdinalIgnoreCase))
-                    showSystemTrayIcon = true;
-                else if (systemTrayIconSetting.Equals("false", StringComparison.OrdinalIgnoreCase))
-                    showSystemTrayIcon = false;
-                else
-                {
-                    // Default to true if the setting is not valid or not there
-                    Trace.WriteLine("Error: ShowSystemTrayIcon setting in json file is not valid. Must be 'true' or 'false'. Defaulting to true");
-                    showSystemTrayIcon = true;
-                }
-            }
-            else
-            {
-                Trace.WriteLine("Warning: ShowSystemTrayIcon setting not found in json file. Defaulting to true.");
-                showSystemTrayIcon = true; // Default to true if the setting is not there
-            }
+            showSystemTrayIcon = CheckJsonBoolSetting(section: appSettings, settingName: "ShowSystemTrayIcon", defaultValue: true);
+
+            debugMode = CheckJsonBoolSetting(section: appSettings, settingName: debugMode_SettingName, defaultValue: false);
 
             // Collect user settings from the json file
             rainmeterSettings = app.Configuration.GetSection(rainmeterSettings_SectionName);
@@ -366,6 +378,15 @@ namespace RainmeterWebhookMonitor
             }
         }
 
+        static void EnableDebugFileLogging()
+        {
+            // Set up a debug log file
+            string debugLogPath = Path.Combine(Directory.GetCurrentDirectory(), debugConsoleLogFileName);
+            Trace.Listeners.Add(new TextWriterTraceListener(debugLogPath));
+            Trace.AutoFlush = true;
+            Trace.WriteLine($"Debug log file created at: {debugLogPath}");
+        }
+
         static void ProcessLaunchArgs(string[] args)
         {
             if (args.Length > 0)
@@ -381,11 +402,9 @@ namespace RainmeterWebhookMonitor
                     if (arg.Equals("-debug", StringComparison.OrdinalIgnoreCase) || arg.Equals("/debug", StringComparison.OrdinalIgnoreCase))
                     {
                         // Set up a debug log file
-                        string debugLogPath = Path.Combine(Directory.GetCurrentDirectory(), debugLogFileName);
-                        Trace.Listeners.Add(new TextWriterTraceListener(debugLogPath));
-                        Trace.AutoFlush = true;
-                        Trace.WriteLine($"Debug log file created at: {debugLogPath}");
+                        EnableDebugFileLogging();
 
+                        // Also enable console output via a console window
                         AllocConsole();
 
                         // Add a ConsoleTraceListener to redirect Trace output to the console
