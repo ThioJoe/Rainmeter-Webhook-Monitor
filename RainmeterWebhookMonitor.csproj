@@ -8,6 +8,8 @@
 	<UseWindowsForms>False</UseWindowsForms>
 	<ApplicationIcon>Assets\RainmeterWebhook.ico</ApplicationIcon>
 	<UseWPF>False</UseWPF>
+	<PublishTrimmed>True</PublishTrimmed>
+	<Version />
   </PropertyGroup>
 
   <ItemGroup>
@@ -34,5 +36,8 @@
   <ItemGroup>
      <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
   </ItemGroup>
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="if $(ConfigurationName) == Release (&#xD;&#xA;    powershell.exe -ExecutionPolicy Bypass -File &quot;$(ProjectDir)\Assets\CheckVersionUpdated.ps1&quot; -version &quot;$(VersionPrefix)&quot; -GitHubRepo &quot;ThioJoe/Rainmeter-Webhook-Monitor&quot;&#xD;&#xA;)" />
+  </Target>
 
 </Project>

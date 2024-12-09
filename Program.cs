@@ -10,7 +10,9 @@ namespace RainmeterWebhookMonitor
 {
     public partial class Program
     {
-        public const string VERSION = "1.0.0";
+        // Get version number from assembly
+        static readonly System.Version versionFull = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+        public static readonly string versionString = $"{versionFull.Major}.{versionFull.Minor}.{versionFull.Build}";
 
         // ------------------------ Constants and globals ------------------------
 

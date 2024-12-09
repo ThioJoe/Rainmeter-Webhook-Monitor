@@ -231,7 +231,7 @@ namespace RainmeterWebhookMonitor
             string aboutMessage = "Rainmeter Webhook Monitor\n\n" +
                 "Author: ThioJoe\n" +
                 "Project Page: https://github.com/ThioJoe/Rainmeter-Webhook-Monitor\n\n" +
-                $"Release Version: {Program.VERSION}\n";
+                $"Release Version: {Program.versionString}\n";
 
             NativeMessageBox.ShowInfoMessage(aboutMessage, "About Rainmeter Webhook Monitor");
         }
