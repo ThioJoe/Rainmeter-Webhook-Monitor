@@ -151,7 +151,7 @@ namespace RainmeterWebhookMonitor
             {
                 // Handle error
                 var error = Marshal.GetLastWin32Error();
-                System.Diagnostics.Debug.WriteLine($"Failed to add tray icon. Error: {error}");
+                Trace.WriteLine($"Failed to add tray icon. Error: {error}");
             }
 
             // Set version (required for reliable operation)
@@ -183,11 +183,11 @@ namespace RainmeterWebhookMonitor
                     return IntPtr.Zero;
                 }
                 // On losing focus
-                else if (lparam == 0x0008)
-                {
-                    Debug.WriteLine("Lost focus");
-                    return IntPtr.Zero;
-                }
+                //else if (lparam == 0x0008)
+                //{
+                //    Trace.WriteLine("Lost focus");
+                //    return IntPtr.Zero;
+                //}
             }
 
             return DefWindowProc(hwnd, msg, wParam, lParam);

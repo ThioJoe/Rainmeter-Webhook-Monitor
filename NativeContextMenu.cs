@@ -157,7 +157,6 @@ namespace RainmeterWebhookMonitor
             if (selected > 0)
             {
                 string? selectedText = menuItemSet.GetMenuItemText_ByIndex((int)selected);
-                Console.WriteLine($"Selected: {selectedText}");
 
                 //Call the appropriate function based on the selected menu item
                 switch (selectedText)
@@ -166,12 +165,12 @@ namespace RainmeterWebhookMonitor
                         string? outputPath = Program.WriteTemplateJsonFile_FromEmbeddedResource(Program.templateConfigResource);
                         if (outputPath != null)
                         {
-                            Console.WriteLine($"Template config file created at: {outputPath}");
+                            Trace.WriteLine($"Template config file created at: {outputPath}");
                             NativeMessageBox.ShowInfoMessage($"Template config file created at: {outputPath}", "Template Config Created");
                         }
                         else
                         {
-                            Console.WriteLine("Error: Template config file not created.");
+                            Trace.WriteLine("Error: Template config file not created.");
                             NativeMessageBox.ShowErrorMessage("Error: Template config file not created.", "Error Creating Template Config");
                         }
                         break;
@@ -194,10 +193,10 @@ namespace RainmeterWebhookMonitor
                         break;
 
                     case null:
-                        Console.WriteLine("Error: Selected item not found.");
+                        Trace.WriteLine("Error: Selected item not found.");
                         break;
                     default:
-                        Console.WriteLine("Error: Selected item not handled.");
+                        Trace.WriteLine("Error: Selected item not handled.");
                         break;
                 }
             }
@@ -219,7 +218,10 @@ namespace RainmeterWebhookMonitor
                     $"where each group corresponds to a different parameter that might be sent in the webhook." +
                 $"\n\nWhen the name you set in \"{s_paramValueSetting}\" appears as a parameter in the webook message, " +
                     "its value will be passed along in the \"Bang\" command sent to rainmeter, along with the other command arguments in its group." +
-                $"\n\nAlso set the Port and path to rainmeter executable accordingly.";
+                $"\n\nAlso set the Port and path to rainmeter executable accordingly." +
+                $"\n\nPossible Launch Arguments:" +
+                    $"\t\n/debug : Shows a console window with app activity output logging" +
+                    $"\t/template : Creates a template json file";
 
             NativeMessageBox.ShowInfoMessage(helpMessage, "Rainmeter Webhook Monitor Help");
         }
@@ -250,7 +252,7 @@ namespace RainmeterWebhookMonitor
                 }
                 else
                 {
-                    Console.WriteLine($"Error opening config file: {ex.Message}");
+                    Trace.WriteLine($"Error opening config file: {ex.Message}");
                 }
             }
         }
@@ -262,7 +264,7 @@ namespace RainmeterWebhookMonitor
             string? executablePath = Environment.ProcessPath;
             if (executablePath == null)
             {
-                Console.WriteLine("Error: Executable path not found.");
+                Trace.WriteLine("Error: Executable path not found.");
                 return;
             }
             Process.Start(executablePath);
@@ -272,7 +274,7 @@ namespace RainmeterWebhookMonitor
         private static void ExitApplication()
         {
             // Logic to exit the application
-            Console.WriteLine("Exiting application...");
+            Trace.WriteLine("Exiting application...");
             Environment.Exit(0);
         }
 

@@ -59,14 +59,14 @@ namespace RainmeterWebhookMonitor
         {
             // Set the current working directory to the directory of the executable
             Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
-            Debug.WriteLine($"Current directory: {Directory.GetCurrentDirectory()}");
+            Trace.WriteLine($"Current directory: {Directory.GetCurrentDirectory()}");
             ProcessLaunchArgs(args);
 
             // Check if the json file exists, if not, create it from the embedded resource
             if (!File.Exists(appConfigJsonName))
             {
                 WriteTemplateJsonFile_FromEmbeddedResource(templateConfigResource);
-                Console.WriteLine($"Created {appConfigJsonName} template file from embedded resource.");
+                Trace.WriteLine($"Created {appConfigJsonName} template file from embedded resource.");
             }
 
             WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -112,16 +112,14 @@ namespace RainmeterWebhookMonitor
 
         static IResult LogProblemToConsoleAndDebug(string message)
         {
-            Console.WriteLine(message);
-            Debug.WriteLine(message);
-            return Results.Problem(message);
+            Trace.WriteLine(message);
+            return Results.Text(message);
         }
 
         static IResult LogSuccessToConsoleAndDebug(string message)
         {
-            Console.WriteLine(message);
-            Debug.WriteLine(message);
-            return Results.Ok(message);
+            Trace.WriteLine(message);
+            return Results.Text(message);
         }
 
         static void ConfigureEndpoints(WebApplication app)
@@ -153,7 +151,7 @@ namespace RainmeterWebhookMonitor
                         matchedCommandSets.Add(commandSettings);
 
                         // Output log with the query parameter and its value
-                        Debug.WriteLine($"Matched Query parameter in received request: {queryParam}, Value: {queryParamResults[queryParam]}");
+                        Trace.WriteLine($"Matched Query parameter in received request: {queryParam}, Value: {queryParamResults[queryParam]}");
                     }
                 }
 
@@ -183,7 +181,7 @@ namespace RainmeterWebhookMonitor
                     return LogProblemToConsoleAndDebug("No commands to send to Rainmeter.");
 
                 // Debug print the commands list to send to Rainmeter
-                Debug.WriteLine($"Rainmeter commands:\n{string.Join("\n\t", rainmeterCommands)}");
+                Trace.WriteLine($"Rainmeter commands:\n{string.Join("\n\t", rainmeterCommands)}");
 
                 // Send each command to Rainmeter with a delay between each one as set in the json file
                 foreach (string rainmeterCommandArgs in rainmeterCommands)
@@ -256,8 +254,8 @@ namespace RainmeterWebhookMonitor
                 if (optionName == null)
                     missingSettings.Add(nameof(optionName));
 
-                Console.WriteLine("Error: Required settings are missing.");
-                Console.WriteLine($"Missing settings: {string.Join(", ", missingSettings)}");
+                Trace.WriteLine("Error: Required settings are missing.");
+                Trace.WriteLine($"Missing settings: {string.Join(", ", missingSettings)}");
                 return null;
             }
 
@@ -265,7 +263,7 @@ namespace RainmeterWebhookMonitor
             if (webhookParameterToUseAsValue != null && queryParamResults.TryGetValue(webhookParameterToUseAsValue, out string? outValue))
                 value = outValue;
             else
-                Debug.WriteLine($"Warning: Parameter {webhookParameterToUseAsValue} not found in query parameters.");
+                Trace.WriteLine($"Warning: Parameter {webhookParameterToUseAsValue} not found in query parameters.");
 
             // ---- Further processing ------
             // Add exclamation to bang command if it doesn't have it
@@ -295,13 +293,13 @@ namespace RainmeterWebhookMonitor
                 else
                 {
                     // Default to true if the setting is not valid or not there
-                    Console.WriteLine("Error: ShowSystemTrayIcon setting in json file is not valid. Must be 'true' or 'false'. Defaulting to true");
+                    Trace.WriteLine("Error: ShowSystemTrayIcon setting in json file is not valid. Must be 'true' or 'false'. Defaulting to true");
                     showSystemTrayIcon = true;
                 }
             }
             else
             {
-                Console.WriteLine("Warning: ShowSystemTrayIcon setting not found in json file. Defaulting to true.");
+                Trace.WriteLine("Warning: ShowSystemTrayIcon setting not found in json file. Defaulting to true.");
                 showSystemTrayIcon = true; // Default to true if the setting is not there
             }
 
@@ -313,13 +311,13 @@ namespace RainmeterWebhookMonitor
             rainmeterPath = rainmeterSettings[rainmeterPath_SettingName];
             if (rainmeterPath == null || string.IsNullOrEmpty(rainmeterPath))
             {
-                Console.WriteLine($"Error: Rainmeter path not found in {appConfigJsonName} file");
+                Trace.WriteLine($"Error: Rainmeter path not found in {appConfigJsonName} file");
                 return false;
             }
 
             if (commandsList == null || commandsList.Count == 0)
             {
-                Console.WriteLine($"Error: Command list is empty in {appConfigJsonName} file");
+                Trace.WriteLine($"Error: Command list is empty in {appConfigJsonName} file");
                 return false;
             }
 
@@ -338,7 +336,7 @@ namespace RainmeterWebhookMonitor
             using Stream? stream = typeof(Program).Assembly.GetManifestResourceStream(resourceName);
             if (stream == null)
             {
-                Console.WriteLine("Error: Embedded resource not found.");
+                Trace.WriteLine("Error: Embedded resource not found.");
                 return null;
             }
 
@@ -363,7 +361,7 @@ namespace RainmeterWebhookMonitor
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error writing template file: {ex.Message}");
+                Trace.WriteLine($"Error writing template file: {ex.Message}");
                 return null;
             }
         }
@@ -377,20 +375,21 @@ namespace RainmeterWebhookMonitor
                     if (arg.Equals("-template", StringComparison.OrdinalIgnoreCase) || arg.Equals("/template", StringComparison.OrdinalIgnoreCase))
                     {
                         WriteTemplateJsonFile_FromEmbeddedResource(templateConfigResource);
-                        Console.WriteLine($"Created {appConfigJsonName} template file from embedded resource.");
+                        Trace.WriteLine($"Created {appConfigJsonName} template file from embedded resource.");
                     }
 
                     if (arg.Equals("-debug", StringComparison.OrdinalIgnoreCase) || arg.Equals("/debug", StringComparison.OrdinalIgnoreCase))
                     {
                         // Set up a debug log file
                         string debugLogPath = Path.Combine(Directory.GetCurrentDirectory(), debugLogFileName);
-                        Trace.Listeners.Add(new TextWriterTraceListener(debugLogPath)); // Use Trace instead of Debug
-                        Trace.AutoFlush = true; // Use Trace instead of Debug
-                        Trace.WriteLine($"Debug log file created at: {debugLogPath}"); // Use Trace instead of Debug
+                        Trace.Listeners.Add(new TextWriterTraceListener(debugLogPath));
+                        Trace.AutoFlush = true;
+                        Trace.WriteLine($"Debug log file created at: {debugLogPath}");
 
                         AllocConsole();
 
-
+                        // Add a ConsoleTraceListener to redirect Trace output to the console
+                        Trace.Listeners.Add(new ConsoleTraceListener());
                     }
                 }
             }
