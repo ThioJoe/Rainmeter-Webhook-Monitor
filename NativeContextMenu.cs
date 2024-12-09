@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace RainmeterWebhookMonitor
 {
-    public partial class NativeContextMenu
+    public class NativeContextMenu
     {
         // Win32 API constants
         private const uint TPM_RETURNCMD = 0x0100;
@@ -21,27 +21,23 @@ namespace RainmeterWebhookMonitor
         }
 
         // Win32 API functions
-        [LibraryImport("user32.dll")]
-        private static partial IntPtr CreatePopupMenu();
+        [DllImport("user32.dll")]
+        private static extern IntPtr CreatePopupMenu();
 
-        [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static partial bool InsertMenu(IntPtr hMenu, uint uPosition, uint uFlags, uint uIDNewItem, string lpNewItem);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern bool InsertMenu(IntPtr hMenu, uint uPosition, uint uFlags, uint uIDNewItem, string lpNewItem);
 
-        [LibraryImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static partial bool DestroyMenu(IntPtr hMenu);
+        [DllImport("user32.dll")]
+        private static extern bool DestroyMenu(IntPtr hMenu);
 
-        [LibraryImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static partial bool GetCursorPos(out POINT lpPoint);
+        [DllImport("user32.dll")]
+        private static extern bool GetCursorPos(out POINT lpPoint);
 
-        [LibraryImport("user32.dll")]
-        private static partial uint TrackPopupMenu(IntPtr hMenu, uint uFlags, int x, int y, int nReserved, IntPtr hwnd, IntPtr lprc);
+        [DllImport("user32.dll")]
+        private static extern uint TrackPopupMenu(IntPtr hMenu, uint uFlags, int x, int y, int nReserved, IntPtr hwnd, IntPtr lprc);
 
-        [LibraryImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static partial bool SetForegroundWindow(IntPtr hWnd);
+        [DllImport("user32.dll")]
+        static extern bool SetForegroundWindow(IntPtr hWnd);
 
         public static uint ShowContextMenu(IntPtr hwnd, MenuItem[] menuItems)
         {
