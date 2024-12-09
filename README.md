@@ -22,12 +22,63 @@ To update the text of Rainmeter skins with info from a webhook message.
 
 1.  Place the exe in the location of your choice, probably along with your Rainmeter skins
 2.  Run it once, it will create the json config file with a couple example commands
-3.  Edit the json config file:
+3.  Set whatever app to send the webhook to the `[Whatever-IP-Address]/rainmeter` URL on any port you choose. For example: `http://127.0.0.1:9999/rainmeter`
+4.  Edit the json config file:
     - Under `WebhookSettings` set the `Port` value to whatever you want, just be sure that it matches where the external service is sending the webhook
     - Under `RainmeterSettings` set the path to your `Rainmeter.exe file`. (There should be two slashes when using a backslash.)
     - Under the `Commands` section, set up one or more groups of commands (see "Command Configuration" instructions below)
 
 ## Command Configuration
+
+The `Commands` section of the config file is a list of groups of settings, each group between curly braces `{ }`. Each group represents a separate command that can be triggered by a webhook and its settings. The following properties are available for each command object:
+
+- `WebhookParameterToUseAsValue`: This is the name of the parameter in the webhook message that will be used as the value for the Rainmeter command. For example, if your webhook message contains a parameter called "temperature", you would set this property to "temperature".
+- `BangCommand`: This is the Rainmeter bang command that will be executed. The program is intended to be used with `SetOption` and `SetVariable` but theoretically should work with any bang command.
+- `MeasureName`: If you are using the "SetOption" bang command, this is the name of the measure that you want to set the option for. (Appears as 1st argument after the bang command)
+- `OptionName`: If you are using the "SetOption" bang command, this is the name of the option that you want to set. (Appears as 2nd argument after the bang command)
+- `SkinConfigName`: This is the name of the Rainmeter skin config file that contains the measure or variable that you want to update. (Appears as 3rd argument after bang command)
+
+You can have multiple command objects in the `Commands` array. Each object will be triggered by a different parameter in the webhook message, as specified in the `WebhookParameterToUseAsValue` value in the group.
+
+## Real Configuration Example
+
+- I have the following commands configuration in my json file which I use to receive the color temperature value from the F.lux program:
+
+```json
+        "Commands": [
+            {
+                "WebhookParameterToUseAsValue": "ct",
+                "BangCommand": "SetOption",
+                "MeasureName": "MeasureColorTemp",
+                "OptionName": "String",
+                "SkinConfigName": "ShowFluxTemp",
+                
+            }
+```
+
+- In the F.lux program the output settings look like this. It's not visible here but the Flux program sends the color temperature value as a parameter called `ct` in its webhook request, which corresponds to the `WebhookParameterToUseAsValue` setting in the json.
+
+<img width="500" alt="image" src="https://github.com/user-attachments/assets/c2536af4-8826-4d83-beea-7c0f7620181e">
+
+
+
+- My skin is called `ShowFluxTemp` and which uses `ShowFluxTemp.ini`. This corresponds to the `SkinConfigName` setting in the json. In the Rainmeter skin's `.ini` file there is this measure section. Notice how this corresponds to the `MeasureName` and `OptionName` settings in the json.
+```ini
+[MeasureColorTemp]
+Measure=String
+String=0000
+```
+
+- Then using that, here's an example of how the updated value is used in a display section:
+```ini
+[MeterDisplay]
+Meter=String
+MeasureName=MeasureColorTemp
+Text="%1K"
+```
+
+( Here's my full .ini config file if you are curious: [ShowFluxTemp.ini](https://github.com/user-attachments/files/18065642/ShowFluxTemp.ini.txt) )
+
 
 ## Command Line Arguments
 
