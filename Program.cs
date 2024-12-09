@@ -16,6 +16,8 @@ namespace RainmeterWebhookMonitor
 {
     public partial class Program
     {
+        public const string VERSION = "1.0.0";
+
         // ------------------------ Constants and globals ------------------------
 
         // File names

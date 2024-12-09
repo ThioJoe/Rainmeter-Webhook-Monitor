@@ -139,6 +139,7 @@ namespace RainmeterWebhookMonitor
             public const string OpenConfigFile = "Open Config File";
             public const string ReloadConfig = "Reload Config";
             public const string CreateTemplate = "Create Template Config";
+            public const string About = "About";
             public const string Help = "Help";
             public const string Exit = "Exit";
         }
@@ -149,6 +150,8 @@ namespace RainmeterWebhookMonitor
             menuItemSet.AddMenuItem(MenuItemNames.OpenConfigFile);
             menuItemSet.AddMenuItem(MenuItemNames.ReloadConfig);
             menuItemSet.AddMenuItem(MenuItemNames.CreateTemplate);
+            menuItemSet.AddSeparator();
+            menuItemSet.AddMenuItem(MenuItemNames.About);
             menuItemSet.AddMenuItem(MenuItemNames.Help);
             menuItemSet.AddSeparator();
             menuItemSet.AddMenuItem(MenuItemNames.Exit);
@@ -165,12 +168,6 @@ namespace RainmeterWebhookMonitor
                 //Call the appropriate function based on the selected menu item
                 switch (selectedText)
                 {
-                    case MenuItemNames.OpenConfigFile:
-                        OpenConfigFile();
-                        break;
-                    case MenuItemNames.ReloadConfig:
-                        RestartApplication();
-                        break;
                     case MenuItemNames.CreateTemplate:
                         string? outputPath = Program.WriteTemplateJsonFile_FromEmbeddedResource(Program.templateConfigResource);
                         if (outputPath != null)
@@ -184,12 +181,24 @@ namespace RainmeterWebhookMonitor
                             NativeMessageBox.ShowErrorMessage("Error: Template config file not created.", "Error Creating Template Config");
                         }
                         break;
+
+                    case MenuItemNames.OpenConfigFile:
+                        OpenConfigFile();
+                        break;
+                    case MenuItemNames.ReloadConfig:
+                        RestartApplication();
+                        break;
+                    
                     case MenuItemNames.Exit:
                         ExitApplication();
                         break;
                     case MenuItemNames.Help:
                         ShowHelpWindowMessage();
                         break;
+                    case MenuItemNames.About:
+                        ShowAboutMessage();
+                        break;
+
                     case null:
                         Console.WriteLine("Error: Selected item not found.");
                         break;
@@ -219,6 +228,16 @@ namespace RainmeterWebhookMonitor
                 $"\n\nAlso set the Port and path to rainmeter executable accordingly.";
 
             NativeMessageBox.ShowInfoMessage(helpMessage, "Rainmeter Webhook Monitor Help");
+        }
+
+        private static void ShowAboutMessage()
+        {
+            string aboutMessage = "Rainmeter Webhook Monitor\n\n" +
+                "Author: ThioJoe\n" +
+                "Project Page: https://github.com/ThioJoe/Rainmeter-Webhook-Monitor\n\n" +
+                $"Release Version: {Program.VERSION}\n";
+
+            NativeMessageBox.ShowInfoMessage(aboutMessage, "About Rainmeter Webhook Monitor");
         }
 
         private static void OpenConfigFile()
