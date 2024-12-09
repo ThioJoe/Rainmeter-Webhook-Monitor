@@ -8,8 +8,9 @@
 	<UseWindowsForms>False</UseWindowsForms>
 	<ApplicationIcon>Assets\RainmeterWebhook.ico</ApplicationIcon>
 	<UseWPF>False</UseWPF>
-	<PublishTrimmed>True</PublishTrimmed>
+	<PublishTrimmed>False</PublishTrimmed>
 	<Version />
+	<PublishAot>False</PublishAot>
   </PropertyGroup>
 
   <ItemGroup>
