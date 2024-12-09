@@ -4,7 +4,6 @@ using Windows.Foundation;
 using System;
 using WinRT;
 using Microsoft.UI;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using Windows.UI.WindowManagement;
 using System.Windows;
 using System.Diagnostics;

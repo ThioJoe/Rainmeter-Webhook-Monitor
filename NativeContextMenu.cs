@@ -4,7 +4,6 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Windows;
-using System.Windows.Forms;
 using static RainmeterWebhookMonitor.NativeContextMenu;
 
 namespace RainmeterWebhookMonitor
@@ -131,7 +130,7 @@ namespace RainmeterWebhookMonitor
                 return _menuItems.Find(x => x.Index == index)?.Text;
             }
         }
-    }
+    } // End of NativeContextMenu class
 
     public class CustomContextMenu
     {
@@ -139,6 +138,7 @@ namespace RainmeterWebhookMonitor
         {
             public const string OpenConfigFile = "Open Config File";
             public const string ReloadConfig = "Reload Config";
+            public const string CreateTemplate = "Create Template Config";
             public const string Help = "Help";
             public const string Exit = "Exit";
         }
@@ -148,6 +148,7 @@ namespace RainmeterWebhookMonitor
             var menuItemSet = new NativeContextMenu.MenuItemSet();
             menuItemSet.AddMenuItem(MenuItemNames.OpenConfigFile);
             menuItemSet.AddMenuItem(MenuItemNames.ReloadConfig);
+            menuItemSet.AddMenuItem(MenuItemNames.CreateTemplate);
             menuItemSet.AddMenuItem(MenuItemNames.Help);
             menuItemSet.AddSeparator();
             menuItemSet.AddMenuItem(MenuItemNames.Exit);
@@ -170,8 +171,24 @@ namespace RainmeterWebhookMonitor
                     case MenuItemNames.ReloadConfig:
                         RestartApplication();
                         break;
+                    case MenuItemNames.CreateTemplate:
+                        string? outputPath = Program.WriteTemplateJsonFile_FromEmbeddedResource(Program.templateConfigResource);
+                        if (outputPath != null)
+                        {
+                            Console.WriteLine($"Template config file created at: {outputPath}");
+                            NativeMessageBox.ShowInfoMessage($"Template config file created at: {outputPath}", "Template Config Created");
+                        }
+                        else
+                        {
+                            Console.WriteLine("Error: Template config file not created.");
+                            NativeMessageBox.ShowErrorMessage("Error: Template config file not created.", "Error Creating Template Config");
+                        }
+                        break;
                     case MenuItemNames.Exit:
                         ExitApplication();
+                        break;
+                    case MenuItemNames.Help:
+                        ShowHelpWindowMessage();
                         break;
                     case null:
                         Console.WriteLine("Error: Selected item not found.");
@@ -185,7 +202,23 @@ namespace RainmeterWebhookMonitor
 
         private static void ShowHelpWindowMessage()
         {
-            MessageBox.Show("This is a help message.", "Help", MessageBoxButton.OK, MessageBoxImage.Information);
+            string s_appConfig = Program.appConfigJsonName;
+            string s_commands = Program.commandsList_SettingName;
+            string s_rainmeterSettings = Program.rainmeterSettings_SectionName;
+            string s_paramValueSetting = Program.webhookParameterToUseAsValue_SettingName;
+
+            string helpMessage = "" +
+                "How To Use: " +
+                $"\nEdit the \"{s_appConfig}\" file to configure how the app will receive and use webhook messages. The {s_appConfig} file should be placed next to the exe." +
+                $"\n\nTo generate a new config, click the option the tray menu option. It will not overwrite an existing file, but be sure to name it " +
+                    $"{s_appConfig} for it to be used." +
+                $"\n\nIn the \"{s_commands}\" section under \"{s_rainmeterSettings}\", you can have multiple sets of commands that can run, " +
+                    $"where each group corresponds to a different parameter that might be sent in the webhook." +
+                $"\n\nWhen the name you set in \"{s_paramValueSetting}\" appears as a parameter in the webook message, " +
+                    "its value will be passed along in the \"Bang\" command sent to rainmeter, along with the other command arguments in its group." +
+                $"\n\nAlso set the Port and path to rainmeter executable accordingly.";
+
+            NativeMessageBox.ShowInfoMessage(helpMessage, "Rainmeter Webhook Monitor Help");
         }
 
         private static void OpenConfigFile()
@@ -230,5 +263,32 @@ namespace RainmeterWebhookMonitor
             Environment.Exit(0);
         }
 
-    }
-}
+    } //  ---------------- End of CustomContextMenu class ----------------
+
+    public class NativeMessageBox
+    {
+        // Import the MessageBox function from user32.dll
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern int MessageBox(IntPtr hWnd, string text, string caption, uint type);
+
+        // MB_OK constant from WinUser.h
+        private const uint MB_OK = 0x00000000;
+
+        public static void ShowInfoMessage(string message, string title)
+        {
+            // Show message box with MB_OK style (just OK button)
+            // First parameter is IntPtr.Zero for no parent window
+            MessageBox(IntPtr.Zero, message, title, MB_OK);
+        }
+
+        public static void ShowErrorMessage(string message, string title)
+        {
+            // Show message box with MB_ICONERROR style (error icon)
+            // First parameter is IntPtr.Zero for no parent window
+            const uint MB_ICONERROR = 0x00000010;
+            MessageBox(IntPtr.Zero, message, title, MB_OK | MB_ICONERROR);
+        }
+    } // --------------- End of NativeMessageBox class ---------------
+
+
+} // --------------- End of Namespace ---------------

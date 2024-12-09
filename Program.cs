@@ -8,7 +8,6 @@ using System.Threading;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Drawing;
 
 #nullable enable
 #pragma warning disable IDE0028 // Simplify collection initialization. Some places it's clearer to use new() instead of []
@@ -22,6 +21,7 @@ namespace RainmeterWebhookMonitor
         // File names
         const string appConfigJsonStem = "appsettings";
         static readonly string appConfigTemplateJsonName = $"{appConfigJsonStem}_template.json";
+        public static readonly string templateConfigResource = $"RainmeterWebhookMonitor.Assets.{appConfigTemplateJsonName}";
         public static readonly string appConfigJsonName = $"{appConfigJsonStem}.json";
         const string debugLogFileName = "RainmeterWebhookMonitor_DebugLog.txt";
 
@@ -30,19 +30,19 @@ namespace RainmeterWebhookMonitor
         const int defaultCommandDelay = 5;
 
         // Section names in the json file
-        const string webhookSettings_SectionName = "WebhookSettings";
-        const string rainmeterSettings_SectionName = "RainmeterSettings";
-        const string applicationSettings_SectionName = "ApplicationSettings";
+        public const string webhookSettings_SectionName = "WebhookSettings";
+        public const string rainmeterSettings_SectionName = "RainmeterSettings";
+        public const string applicationSettings_SectionName = "ApplicationSettings";
         const string webhookURIPath = "/rainmeter";
 
         // Settings names in the json file
-        const string rainmeterPath_SettingName = "RainmeterPath";
-        const string commandsList_SettingName = "Commands";
-        const string bangCommand_SettingName = "BangCommand";
-        const string measureName_SettingName = "MeasureName";
-        const string skinConfigName_SettingName = "SkinConfigName";
-        const string webhookParameterToUseAsValue_SettingName = "WebhookParameterToUseAsValue";
-        const string optionName_SettingName = "OptionName";
+        public const string rainmeterPath_SettingName = "RainmeterPath";
+        public const string commandsList_SettingName = "Commands";
+        public const string bangCommand_SettingName = "BangCommand";
+        public const string measureName_SettingName = "MeasureName";
+        public const string skinConfigName_SettingName = "SkinConfigName";
+        public const string webhookParameterToUseAsValue_SettingName = "WebhookParameterToUseAsValue";
+        public const string optionName_SettingName = "OptionName";
 
         // Set up global settings
         static IConfigurationSection? rainmeterSettings;
@@ -65,7 +65,7 @@ namespace RainmeterWebhookMonitor
             // Check if the json file exists, if not, create it from the embedded resource
             if (!File.Exists(appConfigJsonName))
             {
-                WriteTemplateJsonFile_FromEmbeddedResource($"RainmeterWebhookMonitor.Assets.{appConfigTemplateJsonName}");
+                WriteTemplateJsonFile_FromEmbeddedResource(templateConfigResource);
                 Console.WriteLine($"Created {appConfigJsonName} template file from embedded resource.");
             }
 
@@ -332,14 +332,14 @@ namespace RainmeterWebhookMonitor
 
         }
 
-        static void WriteTemplateJsonFile_FromEmbeddedResource(string resourceName)
+        public static string? WriteTemplateJsonFile_FromEmbeddedResource(string resourceName)
         {
             // Get the embedded resource
             using Stream? stream = typeof(Program).Assembly.GetManifestResourceStream(resourceName);
             if (stream == null)
             {
                 Console.WriteLine("Error: Embedded resource not found.");
-                return;
+                return null;
             }
 
             // If the file name already exists, append a number to the end of the file name to avoid overwriting
@@ -354,9 +354,18 @@ namespace RainmeterWebhookMonitor
             // Get current directory path of the exe
             string outputFilePath = Path.Combine(Directory.GetCurrentDirectory(), newFileName);
 
-            // Write the embedded resource to a file
-            using FileStream fileStream = new(newFileName, FileMode.Create);
-            stream.CopyTo(fileStream);
+            try
+            {
+                // Write the embedded resource to a file
+                using FileStream fileStream = new(outputFilePath, FileMode.Create);
+                stream.CopyTo(fileStream);
+                return outputFilePath;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error writing template file: {ex.Message}");
+                return null;
+            }
         }
 
         static void ProcessLaunchArgs(string[] args)
@@ -367,7 +376,7 @@ namespace RainmeterWebhookMonitor
                 {
                     if (arg.Equals("-template", StringComparison.OrdinalIgnoreCase) || arg.Equals("/template", StringComparison.OrdinalIgnoreCase))
                     {
-                        WriteTemplateJsonFile_FromEmbeddedResource("RainmeterWebhookMonitor.appsettings.json");
+                        WriteTemplateJsonFile_FromEmbeddedResource(templateConfigResource);
                         Console.WriteLine($"Created {appConfigJsonName} template file from embedded resource.");
                     }
                 }
