@@ -22,9 +22,10 @@ To update the text of Rainmeter skins with info from a webhook message.
 
 1.  Place the exe in the location of your choice, probably along with your Rainmeter skins
 2.  Run it once, it will create the json config file with a couple example commands
-3.  Set whatever app to send the webhook to the `[Whatever-IP-Address]/rainmeter` URL on any port you choose. For example: `http://127.0.0.1:9999/rainmeter`
+3.  Set whatever app to send the webhook to the `[Whatever-IP-Address]/rainmeter` URL on any port you choose. For example: `http://127.0.0.1:9999/rainmeter`.
+    - In the config file  you can change the port and url path name if you choose
 4.  Edit the json config file:
-    - Under `WebhookSettings` set the `Port` value to whatever you want, just be sure that it matches where the external service is sending the webhook
+    - Under `WebhookSettings` set the values `Port` (default 9999) and `URL_Path` (default `/rainmeter`) to whatever you want, just be sure that it matches where the external service is sending the webhook
     - Under `RainmeterSettings` set the path to your `Rainmeter.exe file`. (There should be two slashes when using a backslash.)
     - Under the `Commands` section, set up one or more groups of commands (see "Command Configuration" instructions below)
 
@@ -33,6 +34,7 @@ To update the text of Rainmeter skins with info from a webhook message.
 The `Commands` section of the config file is a list of groups of settings, each group between curly braces `{ }`. Each group represents a separate command that can be triggered by a webhook and its settings. The following properties are available for each command object:
 
 - `WebhookParameterToUseAsValue`: This is the name of the parameter in the webhook message that will be used as the value for the Rainmeter command. For example, if your webhook message contains a parameter called "temperature", you would set this property to "temperature".
+   - Tip: If you're not sure what parameter names a webhook is using, you can set `DebugMode` to true in the config to log incoming webhook requests and see what they contain.
 - `BangCommand`: This is the Rainmeter bang command that will be executed. The program is intended to be used with `SetOption` and `SetVariable` but theoretically should work with any bang command.
 - `MeasureName`: If you are using the "SetOption" bang command, this is the name of the measure that you want to set the option for. (Appears as 1st argument after the bang command)
 - `OptionName`: If you are using the "SetOption" bang command, this is the name of the option that you want to set. (Appears as 2nd argument after the bang command)
@@ -79,11 +81,22 @@ Text="%1K"
 
 ( Here's my full .ini config file if you are curious: [ShowFluxTemp.ini](https://github.com/user-attachments/files/18065642/ShowFluxTemp.ini.txt) )
 
+## System Tray Icon
+
+If the system tray icon is enabled in the config, it will look like this, and have a few options in the right click menu. There is no other GUI.
+
+![image](https://github.com/user-attachments/assets/c9826991-60ce-4321-bc91-189fa38cb8f5)
+
 
 ## Command Line Arguments
 
-- /debug: Shows a console window with app activity output logging
-- /template: Forces the creation of a new template json file (if one exists, it will rename the new one, not overwrite)
+- `/debug`: Shows a console window with app activity output logging, and enables debug file logs
+- `/template`: Forces the creation of a new template json file (if one exists, it will rename the new one, not overwrite)
+
+## Other Json Config Options:
+- `DebugMode`: Will create log files with debug output info while running, as well as log the info received from webhook requests (even if they don't match the configured URL path)
+- `Delay_Between_Multiple_Commands_ms`: If there are multiple parameters in a single webhook request that match a command set, the app will send each of them to rainmeter with this number of milliseconds delay between them.
+- `ShowSystemTrayIcon`: Whether to show the system tray icon while running.
 
 ## How to Compile
 
