@@ -15,7 +15,14 @@ To update the text of Rainmeter skins with info from a webhook message.
 - Release executables signed with [EV code signing certificate](https://en.wikipedia.org/wiki/Extended_Validation_Certificate)
    - (No pop up from Windows about untrusted software)
 
-## Lightweight
+## Real-Time Skin Updating
+
+<p align="center">
+<img src="https://github.com/user-attachments/assets/e417609d-ac0d-4b26-93cd-ce53b5e6fb6a">
+</p>
+
+  
+### Lightweight
 
 Resource usage is only ~10 MB of RAM.
 
