@@ -79,21 +79,12 @@ namespace RainmeterWebhookMonitor
             // Run the app with or without a system tray icon depending on the settings
             if (showSystemTrayIcon)
             {
-                // Get handle to the icon
-                // Extract the icon associated with the executable
-                // Get the path to the current exe
-                string exePath = Process.GetCurrentProcess().MainModule.FileName;
-                Icon appIcon = Icon.ExtractAssociatedIcon(exePath);
-
-                // Use the icon handle
-                IntPtr iconHandle = appIcon.Handle;
-
-                // Get hwnd to use for system tray icon if we can
+                // Get hwnd of a main window to use for system tray item
                 IntPtr hwnd = Process.GetCurrentProcess().MainWindowHandle; // Probably zero but try anyway
+
                 SysytemTray sysytemTray = new();
                 IntPtr trayHwnd = sysytemTray.InitializeNotifyIcon(hwnd); // Will return a new hidden window handle if hwnd is zero
 
-                // If no system tray icon, just run the web app directly
                 ConfigureEndpoints(app);
                 app.Run();
             }
@@ -106,148 +97,8 @@ namespace RainmeterWebhookMonitor
         }
         // -------------------------- End of Main -------------------------------
 
-        public static void OpenConfigFile()
-        {
-            string configFilePath = Path.Combine(Directory.GetCurrentDirectory(), appConfigJsonName);
-            try
-            {
-                Process.Start(new ProcessStartInfo(configFilePath) { UseShellExecute = true });
-            }
-            catch (System.ComponentModel.Win32Exception ex)
-            {
-                // If there is no association, try opening with Notepad
-                if (ex.NativeErrorCode == 1155) // ERROR_NO_ASSOCIATION
-                {
-                    Process.Start(new ProcessStartInfo("notepad.exe", configFilePath) { UseShellExecute = true });
-                }
-                else
-                {
-                    Console.WriteLine($"Error opening config file: {ex.Message}");
-                }
-            }
-        }
+        
 
-        // -------------------- Windows related methods -------------------
-
-        ////CustomApplicationContext class to handle the system tray icon
-        //public class CustomApplicationContext : ApplicationContext, IDisposable
-        //{
-        //    private readonly NotifyIcon notifyIcon;
-        //    private readonly WebApplication webApp;
-        //    private readonly CancellationTokenSource cancellationTokenSource;
-        //    private bool _disposed = false;
-
-        //    public CustomApplicationContext(WebApplication app)
-        //    {
-        //        webApp = app;
-        //        cancellationTokenSource = new CancellationTokenSource();
-
-        //        // Configure the web app (endpoints for the webhook, what to do upon receiving query, etc)
-        //        ConfigureEndpoints(webApp);
-
-        //        // Initialize NotifyIcon (System tray icon)
-        //        notifyIcon = new NotifyIcon()
-        //        {
-        //            Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath),
-        //            Visible = true,
-        //            ContextMenuStrip = new ContextMenuStrip()
-        //        };
-
-        //        // Add menu items
-        //        notifyIcon.ContextMenuStrip.Items.Add("Open Config File", null, OpenConfigFile);
-        //        notifyIcon.ContextMenuStrip.Items.Add("Reload Config", null, RestartApp);
-        //        notifyIcon.ContextMenuStrip.Items.Add("Exit", null, Exit);
-
-        //        // Start web application in background
-        //        Task.Run(async () =>
-        //        {
-        //            try
-        //            {
-        //                await webApp.RunAsync(cancellationTokenSource.Token);
-        //            }
-        //            catch (OperationCanceledException)
-        //            {
-        //                // Normal shutdown, no need to handle
-        //            }
-        //        });
-        //    }
-
-        //    // Restarts the application to reload the json file
-        //    private void RestartApp(object? sender, EventArgs e)
-        //    {
-        //        // Cancel the current web application
-        //        cancellationTokenSource.Cancel();
-        //        // Dispose of the context (which includes cleanup)
-        //        Dispose();
-        //        // Restart the application
-        //        Process.Start(Application.ExecutablePath);
-        //    }
-
-        //    private void OpenConfigFile(object? sender, EventArgs e)
-        //    {
-        //        string configFilePath = Path.Combine(Directory.GetCurrentDirectory(), appConfigJsonName);
-        //        try
-        //        {
-        //            Process.Start(new ProcessStartInfo(configFilePath) { UseShellExecute = true });
-        //        }
-        //        catch (Win32Exception ex)
-        //        {
-        //            // If there is no association, try opening with Notepad
-        //            if (ex.NativeErrorCode == 1155) // ERROR_NO_ASSOCIATION
-        //            {
-        //                Process.Start(new ProcessStartInfo("notepad.exe", configFilePath) { UseShellExecute = true });
-        //            }
-        //            else
-        //            {
-        //                Console.WriteLine($"Error opening config file: {ex.Message}");
-        //            }
-        //        }
-        //    }
-
-        //    private void Exit(object? sender, EventArgs e)
-        //    {
-        //        // Hide tray icon immediately
-        //        notifyIcon.Visible = false;
-
-        //        // Cancel web application
-        //        cancellationTokenSource.Cancel();
-
-        //        // Dispose of the context (which includes cleanup)
-        //        Dispose();
-
-        //        // Exit the application context
-        //        Application.Exit();
-        //    }
-
-        //    public new void Dispose()
-        //    {
-        //        Dispose(true);
-        //        GC.SuppressFinalize(this);
-        //    }
-
-        //    protected override void Dispose(bool disposing)
-        //    {
-        //        if (!_disposed)
-        //        {
-        //            if (disposing)
-        //            {
-        //                // Dispose managed resources
-        //                notifyIcon?.Dispose();
-        //                cancellationTokenSource?.Dispose();
-        //                webApp?.DisposeAsync().AsTask().Wait();
-        //            }
-
-        //            // Set disposed flag
-        //            _disposed = true;
-        //        }
-        //        base.Dispose(disposing);
-        //    }
-
-        //    ~CustomApplicationContext()
-        //    {
-        //        Dispose(false);
-        //    }
-        //}
 
         // --------------------- Web App Configuration -------------------
 

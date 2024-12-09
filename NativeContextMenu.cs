@@ -139,6 +139,7 @@ namespace RainmeterWebhookMonitor
         {
             public const string OpenConfigFile = "Open Config File";
             public const string ReloadConfig = "Reload Config";
+            public const string Help = "Help";
             public const string Exit = "Exit";
         }
 
@@ -147,6 +148,7 @@ namespace RainmeterWebhookMonitor
             var menuItemSet = new NativeContextMenu.MenuItemSet();
             menuItemSet.AddMenuItem(MenuItemNames.OpenConfigFile);
             menuItemSet.AddMenuItem(MenuItemNames.ReloadConfig);
+            menuItemSet.AddMenuItem(MenuItemNames.Help);
             menuItemSet.AddSeparator();
             menuItemSet.AddMenuItem(MenuItemNames.Exit);
 
@@ -163,7 +165,7 @@ namespace RainmeterWebhookMonitor
                 switch (selectedText)
                 {
                     case MenuItemNames.OpenConfigFile:
-                        Program.OpenConfigFile();
+                        OpenConfigFile();
                         break;
                     case MenuItemNames.ReloadConfig:
                         RestartApplication();
@@ -181,7 +183,34 @@ namespace RainmeterWebhookMonitor
             }
         }
 
-        public static void RestartApplication()
+        private static void ShowHelpWindowMessage()
+        {
+            MessageBox.Show("This is a help message.", "Help", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private static void OpenConfigFile()
+        {
+            string configFilePath = Path.Combine(Directory.GetCurrentDirectory(), Program.appConfigJsonName);
+            try
+            {
+                Process.Start(new ProcessStartInfo(configFilePath) { UseShellExecute = true });
+            }
+            catch (System.ComponentModel.Win32Exception ex)
+            {
+                // If there is no association, try opening with Notepad
+                if (ex.NativeErrorCode == 1155) // ERROR_NO_ASSOCIATION
+                {
+                    Process.Start(new ProcessStartInfo("notepad.exe", configFilePath) { UseShellExecute = true });
+                }
+                else
+                {
+                    Console.WriteLine($"Error opening config file: {ex.Message}");
+                }
+            }
+        }
+
+        // General universal functions
+        private static void RestartApplication()
         {
             // Restart the application
             string? executablePath = Environment.ProcessPath;
@@ -194,7 +223,7 @@ namespace RainmeterWebhookMonitor
             Environment.Exit(0);
         }
 
-        public static void ExitApplication()
+        private static void ExitApplication()
         {
             // Logic to exit the application
             Console.WriteLine("Exiting application...");
