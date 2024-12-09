@@ -1,5 +1,6 @@
 //using static System.Net.Mime.MediaTypeNames;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 #nullable enable
 #pragma warning disable IDE0028 // Simplify collection initialization. Some places it's clearer to use new() instead of []
@@ -46,6 +47,11 @@ namespace RainmeterWebhookMonitor
         static int commandDelay = defaultCommandDelay;
         static string? webhookURL = null;
         static bool showSystemTrayIcon = false;
+
+        // Import the AllocConsole function from kernel32.dll
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool AllocConsole();
 
         // ----------------------------- MAIN -----------------------------
         [STAThread] // Set the application to use STA threading model
@@ -372,6 +378,19 @@ namespace RainmeterWebhookMonitor
                     {
                         WriteTemplateJsonFile_FromEmbeddedResource(templateConfigResource);
                         Console.WriteLine($"Created {appConfigJsonName} template file from embedded resource.");
+                    }
+
+                    if (arg.Equals("-debug", StringComparison.OrdinalIgnoreCase) || arg.Equals("/debug", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Set up a debug log file
+                        string debugLogPath = Path.Combine(Directory.GetCurrentDirectory(), debugLogFileName);
+                        Trace.Listeners.Add(new TextWriterTraceListener(debugLogPath)); // Use Trace instead of Debug
+                        Trace.AutoFlush = true; // Use Trace instead of Debug
+                        Trace.WriteLine($"Debug log file created at: {debugLogPath}"); // Use Trace instead of Debug
+
+                        AllocConsole();
+
+
                     }
                 }
             }
