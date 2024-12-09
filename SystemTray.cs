@@ -1,13 +1,8 @@
-﻿using Microsoft.UI.Xaml;
-using System.Runtime.InteropServices;
-using Windows.Foundation;
-using System;
-using WinRT;
-using Microsoft.UI;
-using Windows.UI.WindowManagement;
-using System.Windows;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Drawing;
+using System.Runtime.InteropServices;
+using Windows.UI.WindowManagement;
+using WinRT;
 
 namespace RainmeterWebhookMonitor
 {
@@ -59,7 +54,7 @@ namespace RainmeterWebhookMonitor
         [DllImport("user32.dll")]
         static extern IntPtr CreateIconFromResource(byte[] presbits, uint dwResSize, bool fIcon, uint dwVer);
 
-        [DllImport("user32.dll", SetLastError = true)]
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         static extern IntPtr CreateWindowEx(
             uint dwExStyle,
             string lpClassName,
@@ -83,8 +78,6 @@ namespace RainmeterWebhookMonitor
         }
 
         private const uint NIM_ADD = 0x00000000;
-        private const uint NIM_MODIFY = 0x00000001;
-        private const uint NIM_DELETE = 0x00000002;
         private const uint NIF_MESSAGE = 0x00000001;
         private const uint NIF_ICON = 0x00000002;
         private const uint NIF_TIP = 0x00000004;
@@ -96,23 +89,12 @@ namespace RainmeterWebhookMonitor
         private const uint NIM_SETVERSION = 4;
 
         private NOTIFYICONDATAW notifyIcon;
-        private IntPtr hwnd;
-        //private WindowId windowId;
-        private AppWindow appWindow;
-        private bool isMinimizedToTray = false;
-        private WndProcDelegate newWndProc;
-        private IntPtr defaultWndProc;
+        private WndProcDelegate? newWndProc;
 
         public void InitializeContextMenu(IntPtr hwnd)
         {
-            //// Get the window handle
-            //hwnd = GetWindowHandle();
-            //windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
-            //appWindow = AppWindow.GetFromWindowId(windowId);
-
-            // Set up window message handling
+            //Set up window message handling
             newWndProc = new WndProcDelegate(WndProc);
-            defaultWndProc = GetWindowLongPtr(hwnd, GWLP_WNDPROC);
             SetWindowLongPtr(hwnd, GWLP_WNDPROC, Marshal.GetFunctionPointerForDelegate(newWndProc));
         }
 
@@ -124,12 +106,14 @@ namespace RainmeterWebhookMonitor
 
         public IntPtr InitializeNotifyIcon(IntPtr hwnd, IntPtr hIcon)
         {
-            notifyIcon = new NOTIFYICONDATAW();
-            notifyIcon.cbSize = (uint)Marshal.SizeOf(typeof(NOTIFYICONDATAW));
-            notifyIcon.hWnd = hwnd;
-            notifyIcon.uID = 1;
-            notifyIcon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
-            notifyIcon.uCallbackMessage = WM_TRAYICON;
+            notifyIcon = new NOTIFYICONDATAW
+            {
+                cbSize = (uint)Marshal.SizeOf(typeof(NOTIFYICONDATAW)),
+                hWnd = hwnd,
+                uID = 1,
+                uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP,
+                uCallbackMessage = WM_TRAYICON
+            };
 
             // If hwnd is IntPtr.Zero, create a hidden 0x0 window to receive tray icon messages
             if (hwnd == IntPtr.Zero)
@@ -181,8 +165,6 @@ namespace RainmeterWebhookMonitor
 
         private delegate IntPtr WndProcDelegate(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
 
-        private const int WM_CLOSE = 0x0010;  // Add this to the constants
-
         private IntPtr WndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
         {
             if (msg == WM_TRAYICON)
@@ -207,22 +189,10 @@ namespace RainmeterWebhookMonitor
                     return IntPtr.Zero;
                 }
             }
-            // If the main window is closed, minimize to tray
-            //else if (msg == WM_CLOSE)
-            //{
-            //    // Intercept window close
-            //    MinimizeToTray();
-            //    return IntPtr.Zero;
-            //}
 
             return DefWindowProc(hwnd, msg, wParam, lParam);
         }
 
-        private IntPtr GetWindowHandle()
-        {
-            var windowNative = this.As<IWindowNative>();
-            return windowNative.WindowHandle;
-        }
     }
 
     [ComImport]

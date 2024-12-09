@@ -1,13 +1,5 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.IO;
-using System.Threading;
 //using static System.Net.Mime.MediaTypeNames;
 using System.Diagnostics;
-using System.Collections.Generic;
-using System.ComponentModel;
 
 #nullable enable
 #pragma warning disable IDE0028 // Simplify collection initialization. Some places it's clearer to use new() instead of []
@@ -99,7 +91,7 @@ namespace RainmeterWebhookMonitor
         }
         // -------------------------- End of Main -------------------------------
 
-        
+
 
 
         // --------------------- Web App Configuration -------------------
@@ -222,7 +214,7 @@ namespace RainmeterWebhookMonitor
                 return LogSuccessToConsoleAndDebug($"Finished processing request.");
 
             });
-            
+
             if (webhookURL != null)
                 app.Urls.Add(webhookURL);
             else
@@ -306,7 +298,7 @@ namespace RainmeterWebhookMonitor
                 Console.WriteLine("Warning: ShowSystemTrayIcon setting not found in json file. Defaulting to true.");
                 showSystemTrayIcon = true; // Default to true if the setting is not there
             }
-                
+
             // Collect user settings from the json file
             rainmeterSettings = app.Configuration.GetSection(rainmeterSettings_SectionName);
             // Get each path within the section

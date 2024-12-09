@@ -1,17 +1,11 @@
-﻿using System;
-using System.Diagnostics;
-using System.IO;
+﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography.X509Certificates;
-using System.Windows;
-using static RainmeterWebhookMonitor.NativeContextMenu;
 
 namespace RainmeterWebhookMonitor
 {
     public class NativeContextMenu
     {
         // Win32 API constants
-        private const uint TPM_LEFTALIGN = 0x0000;
         private const uint TPM_RETURNCMD = 0x0100;
         private const uint MF_STRING = 0x00000000;
         private const uint MF_SEPARATOR = 0x00000800;
@@ -30,7 +24,7 @@ namespace RainmeterWebhookMonitor
         [DllImport("user32.dll")]
         private static extern IntPtr CreatePopupMenu();
 
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         private static extern bool InsertMenu(IntPtr hMenu, uint uPosition, uint uFlags, uint uIDNewItem, string lpNewItem);
 
         [DllImport("user32.dll")]
@@ -188,7 +182,7 @@ namespace RainmeterWebhookMonitor
                     case MenuItemNames.ReloadConfig:
                         RestartApplication();
                         break;
-                    
+
                     case MenuItemNames.Exit:
                         ExitApplication();
                         break;
@@ -297,7 +291,7 @@ namespace RainmeterWebhookMonitor
         {
             // Show message box with MB_OK style (just OK button)
             // First parameter is IntPtr.Zero for no parent window
-            MessageBox(IntPtr.Zero, message, title, MB_OK);
+            var result = MessageBox(IntPtr.Zero, message, title, MB_OK);
         }
 
         public static void ShowErrorMessage(string message, string title)
@@ -305,7 +299,7 @@ namespace RainmeterWebhookMonitor
             // Show message box with MB_ICONERROR style (error icon)
             // First parameter is IntPtr.Zero for no parent window
             const uint MB_ICONERROR = 0x00000010;
-            MessageBox(IntPtr.Zero, message, title, MB_OK | MB_ICONERROR);
+            var result = MessageBox(IntPtr.Zero, message, title, MB_OK | MB_ICONERROR);
         }
     } // --------------- End of NativeMessageBox class ---------------
 
