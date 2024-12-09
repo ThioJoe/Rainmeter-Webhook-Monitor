@@ -151,7 +151,7 @@ namespace RainmeterWebhookMonitor
 
                 // Log the raw json request before anything else
                 if (debugMode)
-                    LogWebhookRequest(http);
+                    LogWebhookRequest(http, recognizedPath: true);
 
                 if (commandsList == null)
                     return LogProblemToConsoleAndDebug("Commands list not found in json file. Skipping any processing of received request.");
@@ -242,10 +242,23 @@ namespace RainmeterWebhookMonitor
 
             });
 
+            // A wildcard route to catch all other URL paths not matched
+            if (debugMode)
+            {
+                app.Map("{*url}", (HttpContext http) =>
+                {
+                    // Log the request details
+                    LogWebhookRequest(http, recognizedPath: false);
+                    string nonMatchingPath = http.Request.Path;
+                    return LogProblemToConsoleAndDebug($"Received request to webhook URL path that does not match that in the config: {nonMatchingPath}");
+                });
+            }
+            
+            // Add the webhook URL to the list of URLs to listen on
             if (webhookURL != null)
                 app.Urls.Add(webhookURL);
             else
-                LogProblemToConsoleAndDebug("Webhook URL not valid. This is probably a bug!");
+                LogProblemToConsoleAndDebug("Webhook URL path is null! Is it set in the config? It shouldn't have gotten to this point, this could be a bug.");
         }
 
         // ------------------------- Other Methods ------------------------
@@ -301,11 +314,12 @@ namespace RainmeterWebhookMonitor
         }
 
         // Writes log entries for the raw json requests received, regardless of matching any commands
-        static void LogWebhookRequest(HttpContext http)
+        static void LogWebhookRequest(HttpContext http, bool recognizedPath)
         {
             // Get time from the request
             string time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             string queryString = $"{http.Request.Method} {http.Request.Host}{http.Request.Path}{http.Request.QueryString}";
+            string matchString = recognizedPath ? $"Matches path in config: {webhookURLPath}" : $"Does not match path in config: {webhookURLPath}";
 
             string t = "    "; // Indentation / tab
             string logEntry = "" +
@@ -314,6 +328,7 @@ namespace RainmeterWebhookMonitor
                 $"{t}Method: " + http.Request.Method + "\n" +
                 $"{t}Host: " + http.Request.Host + "\n" +
                 $"{t}Path: " + http.Request.Path + "\n" +
+                $"{t}{t}{matchString}\n" +
                 $"{t}Parameters: \n";
 
             foreach (KeyValuePair<string, StringValues> queryParam in http.Request.Query)
