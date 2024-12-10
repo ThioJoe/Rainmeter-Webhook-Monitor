@@ -37,7 +37,10 @@ Note: Though the exe itself is a bit large at ~60MB, that is because it was buil
 - Go to the [Releases page](https://github.com/ThioJoe/Rainmeter-Webhook-Monitor/releases) (link also found on the right side of the page)
 - For the latest release, look under "Assets" and click to download exe file
 
-## Usage
+## Walkthrough / Tutorial:
+- ### I have a wiki page with a more detailed walkthrough here: [Step‐By‐Step Walkthrough](https://github.com/ThioJoe/Rainmeter-Webhook-Monitor/wiki/Step%E2%80%90By%E2%80%90Step-Walkthrough)
+
+## Usage Basics
 
 1.  Place the exe in the location of your choice, probably along with your Rainmeter skins
 2.  Run it once, it will create the json config file with a couple example commands
