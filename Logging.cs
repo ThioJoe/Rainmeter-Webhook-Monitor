@@ -15,7 +15,7 @@ namespace RainmeterWebhookMonitor
         private static readonly string debugConsoleLogFilePath = Path.Combine(debugFolderPath, debugConsoleLogFileName);
         private static readonly string debugWebhookLogFilePath = Path.Combine(debugFolderPath, debugWebhookLogFileName);
 
-        public static void EnableDebugConsoleFileLogging()
+        public static void InitializeFileLogging()
         {
             if (!debugConsoleFileLoggingAlreadyEnabled)
             {
@@ -24,6 +24,15 @@ namespace RainmeterWebhookMonitor
                 Trace.AutoFlush = true;
                 Trace.WriteLine($"Debug log file created at: {debugConsoleLogFilePath}");
                 debugConsoleFileLoggingAlreadyEnabled = true;
+
+                if (TryCreateInitialDebugFolder() == false)
+                {
+                    Trace.WriteLine("Error creating debug folder. Debug logs will be saved in the current directory.");
+                }
+                else
+                {
+                    Trace.WriteLine($"Debug logs will be saved in: {debugFolderPath}");
+                }
             }
         }
 
@@ -64,13 +73,18 @@ namespace RainmeterWebhookMonitor
             }
         }
 
-        public static void WriteCrashLog(Exception ex)
+        public static void WriteCrashLog(Exception ex, string? otherInfo = null)
         {
             string time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             string logEntry = "" +
                 $"Crash at: {time}\n" +
                 $"Exception: {ex.Message}\n" +
                 $"Stack trace: {ex.StackTrace}\n\n";
+            if (otherInfo != null)
+            {
+                logEntry += $"Other info: {otherInfo}\n\n";
+            }
+
             string crashLogPath = Path.Combine(debugFolderPath, $"CrashLog_{timestamp}.txt");
 
             // Create the folder if it doesn't exist. If it fails (return of false), don't write the log

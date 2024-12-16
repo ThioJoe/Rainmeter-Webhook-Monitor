@@ -1,5 +1,4 @@
 //using static System.Net.Mime.MediaTypeNames;
-using Microsoft.Extensions.Primitives;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
@@ -92,7 +91,7 @@ namespace RainmeterWebhookMonitor
             LoadConfigFile(app);
 
             if (debugMode)
-                Logging.EnableDebugConsoleFileLogging();
+                Logging.InitializeFileLogging();
 
             // Run the app with or without a system tray icon depending on the settings
             if (showSystemTrayIcon)
@@ -451,7 +450,7 @@ namespace RainmeterWebhookMonitor
                     if (arg.Equals("-debug", StringComparison.OrdinalIgnoreCase) || arg.Equals("/debug", StringComparison.OrdinalIgnoreCase))
                     {
                         // Set up a debug log file
-                        Logging.EnableDebugConsoleFileLogging();
+                        Logging.InitializeFileLogging();
 
                         // Also enable console output via a console window
                         AllocConsole();

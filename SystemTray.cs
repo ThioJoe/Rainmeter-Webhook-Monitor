@@ -117,6 +117,8 @@ namespace RainmeterWebhookMonitor
             if (previousWndProc == IntPtr.Zero && Marshal.GetLastWin32Error() != 0)
             {
                 int errorCode = Marshal.GetLastWin32Error();
+
+                Logging.WriteCrashLog(new Win32Exception(errorCode), "Occurred trying to call SetWindowLongPtr, with error code: " + errorCode);
                 throw new Win32Exception(errorCode);
             }
 
@@ -210,9 +212,15 @@ namespace RainmeterWebhookMonitor
                 }
                 return DefWindowProc(hwnd, msg, wParam, lParam);
             }
-            catch
+            catch(Exception ex)
             {
-                //return IntPtr.Zero;
+                if (Program.debugMode == true)
+                {
+                    Trace.WriteLine($"Error in WndProc: {ex.Message}");
+                    Logging.WriteCrashLog(ex);
+                    NativeMessageBox.ShowErrorMessage("An error occurred. Please check the log for details.", "Error");
+                }
+
                 // For now throw exception to see what's going on
                 throw;
             }
