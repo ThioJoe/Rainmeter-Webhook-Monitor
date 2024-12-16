@@ -22,12 +22,6 @@ namespace RainmeterWebhookMonitor
         public static readonly string templateConfigResource = $"RainmeterWebhookMonitor.Assets.{appConfigTemplateJsonName}";
         public static readonly string appConfigJsonName = $"{appConfigJsonStem}.json";
 
-        private static readonly string timestamp = DateTime.Now.ToString("MM-dd_HH-mm-ss");
-        public static readonly string debugConsoleLogFileName = $"RainmeterWebhookMonitor_DebugConsoleLog_{timestamp}.txt";
-        public static readonly string debugWebhookLogFileName = $"RainmeterWebhookMonitor_DebugWebhookLog_{timestamp}.txt";
-        public static readonly string debugConsoleLogFilePath = Path.Combine(Directory.GetCurrentDirectory(), debugConsoleLogFileName);
-        public static readonly string debugWebhookLogFilePath = Path.Combine(Directory.GetCurrentDirectory(), debugWebhookLogFileName);
-
         // App settings names in the json file
         const string commandDelay_SettingName = "Delay_Between_Multiple_Commands_ms";
         const int defaultCommandDelay = 5;
@@ -63,8 +57,8 @@ namespace RainmeterWebhookMonitor
         static string webhookURLPath = "/rainmeter";
 
         // Debug related
-        static bool debugMode = false;
-        static bool debugConsoleFileLoggingAlreadyEnabled = false; // Prevents an extra trace listener from being added
+        public static bool debugMode = false;
+        
 
         // Declare SystemTray object at class level so it doesn't get garbage collected
         private static SystemTray? systemTray;
@@ -98,7 +92,7 @@ namespace RainmeterWebhookMonitor
             LoadConfigFile(app);
 
             if (debugMode)
-                EnableDebugConsoleFileLogging();
+                Logging.EnableDebugConsoleFileLogging();
 
             // Run the app with or without a system tray icon depending on the settings
             if (showSystemTrayIcon)
@@ -155,7 +149,7 @@ namespace RainmeterWebhookMonitor
 
                 // Log the raw json request before anything else
                 if (debugMode)
-                    LogWebhookRequest(http, recognizedPath: true);
+                    Logging.LogWebhookRequest(http, recognizedPath: true, webhookURLPath:webhookURLPath);
 
                 if (commandsList == null)
                     return LogProblemToConsoleAndDebug("Commands list not found in json file. Skipping any processing of received request.");
@@ -252,7 +246,7 @@ namespace RainmeterWebhookMonitor
                 app.Map("{*url}", (HttpContext http) =>
                 {
                     // Log the request details
-                    LogWebhookRequest(http, recognizedPath: false);
+                    Logging.LogWebhookRequest(http, recognizedPath: false, webhookURLPath: webhookURLPath);
                     string nonMatchingPath = http.Request.Path;
                     return LogProblemToConsoleAndDebug($"Received request to webhook URL path that does not match that in the config: {nonMatchingPath}");
                 });
@@ -317,40 +311,7 @@ namespace RainmeterWebhookMonitor
                 return $"\"{rainmeterPath}\" {bangCommand} {measureName} {optionName} {value} {skinConfigName}";
         }
 
-        // Writes log entries for the raw json requests received, regardless of matching any commands
-        static void LogWebhookRequest(HttpContext http, bool recognizedPath)
-        {
-            // Get time from the request
-            string time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-            string queryString = $"{http.Request.Method} {http.Request.Host}{http.Request.Path}{http.Request.QueryString}";
-            string matchString = recognizedPath ? $"Matches path in config: {webhookURLPath}" : $"Does not match path in config: {webhookURLPath}";
 
-            string t = "    "; // Indentation / tab
-            string logEntry = "" +
-                queryString + "\n" +
-                $"{t}Time: " + time + "\n" +
-                $"{t}Method: " + http.Request.Method + "\n" +
-                $"{t}Host: " + http.Request.Host + "\n" +
-                $"{t}Path: " + http.Request.Path + "\n" +
-                $"{t}{t}{matchString}\n" +
-                $"{t}Parameters: \n";
-
-            foreach (KeyValuePair<string, StringValues> queryParam in http.Request.Query)
-            {
-                logEntry += $"{t}{t}{queryParam.Key}: {queryParam.Value}\n";
-            }
-            logEntry += "\n\n--------------------------------------------------------------------------------\n\n";
-
-
-            try
-            {
-                File.AppendAllText(debugWebhookLogFilePath, logEntry);
-            }
-            catch (Exception ex)
-            {
-                Trace.WriteLine($"Error writing webhook request log: {ex.Message}");
-            }
-        }
 
         static bool CheckJsonBoolSetting(IConfigurationSection section, string settingName, bool defaultValue)
         {
@@ -473,16 +434,7 @@ namespace RainmeterWebhookMonitor
             }
         }
 
-        static void EnableDebugConsoleFileLogging()
-        {
-            if (!debugConsoleFileLoggingAlreadyEnabled) {
-                // Set up a debug log file
-                Trace.Listeners.Add(new TextWriterTraceListener(debugConsoleLogFilePath));
-                Trace.AutoFlush = true;
-                Trace.WriteLine($"Debug log file created at: {debugConsoleLogFilePath}");
-                debugConsoleFileLoggingAlreadyEnabled = true;
-            }
-        }
+        
 
         static void ProcessLaunchArgs(string[] args)
         {
@@ -499,7 +451,7 @@ namespace RainmeterWebhookMonitor
                     if (arg.Equals("-debug", StringComparison.OrdinalIgnoreCase) || arg.Equals("/debug", StringComparison.OrdinalIgnoreCase))
                     {
                         // Set up a debug log file
-                        EnableDebugConsoleFileLogging();
+                        Logging.EnableDebugConsoleFileLogging();
 
                         // Also enable console output via a console window
                         AllocConsole();
@@ -510,5 +462,33 @@ namespace RainmeterWebhookMonitor
                 }
             }
         }
-    }
+
+    } // ----------------------------- End of Program class -----------------------------
+
+    public static class NativeMessageBox
+    {
+        // Import the MessageBox function from user32.dll
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern int MessageBox(IntPtr hWnd, string text, string caption, uint type);
+
+        // MB_OK constant from WinUser.h
+        private const uint MB_OK = 0x00000000;
+
+        public static void ShowInfoMessage(string message, string title)
+        {
+            // Show message box with MB_OK style (just OK button)
+            // First parameter is IntPtr.Zero for no parent window
+            var result = MessageBox(IntPtr.Zero, message, title, MB_OK);
+        }
+
+        public static void ShowErrorMessage(string message, string title)
+        {
+            // Show message box with MB_ICONERROR style (error icon)
+            // First parameter is IntPtr.Zero for no parent window
+            const uint MB_ICONERROR = 0x00000010;
+            var result = MessageBox(IntPtr.Zero, message, title, MB_OK | MB_ICONERROR);
+        }
+
+    } // --------------- End of NativeMessageBox class ---------------
+
 }

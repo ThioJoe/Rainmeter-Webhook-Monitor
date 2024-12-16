@@ -280,30 +280,7 @@ namespace RainmeterWebhookMonitor
 
     } //  ---------------- End of CustomContextMenu class ----------------
 
-    public class NativeMessageBox
-    {
-        // Import the MessageBox function from user32.dll
-        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-        private static extern int MessageBox(IntPtr hWnd, string text, string caption, uint type);
-
-        // MB_OK constant from WinUser.h
-        private const uint MB_OK = 0x00000000;
-
-        public static void ShowInfoMessage(string message, string title)
-        {
-            // Show message box with MB_OK style (just OK button)
-            // First parameter is IntPtr.Zero for no parent window
-            var result = MessageBox(IntPtr.Zero, message, title, MB_OK);
-        }
-
-        public static void ShowErrorMessage(string message, string title)
-        {
-            // Show message box with MB_ICONERROR style (error icon)
-            // First parameter is IntPtr.Zero for no parent window
-            const uint MB_ICONERROR = 0x00000010;
-            var result = MessageBox(IntPtr.Zero, message, title, MB_OK | MB_ICONERROR);
-        }
-    } // --------------- End of NativeMessageBox class ---------------
+    
 
 
 } // --------------- End of Namespace ---------------
