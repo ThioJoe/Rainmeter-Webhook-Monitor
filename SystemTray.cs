@@ -194,12 +194,6 @@ namespace RainmeterWebhookMonitor
                     CustomContextMenu.CreateAndShowMenu(hwnd);
                     return IntPtr.Zero;
                 }
-                // On losing focus
-                //else if (lparam == 0x0008)
-                //{
-                //    Trace.WriteLine("Lost focus");
-                //    return IntPtr.Zero;
-                //}
             }
 
             return DefWindowProc(hwnd, msg, wParam, lParam);
