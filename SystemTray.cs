@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using Windows.UI.WindowManagement;
@@ -89,23 +90,36 @@ namespace RainmeterWebhookMonitor
         private const uint NIM_SETVERSION = 4;
 
         private NOTIFYICONDATAW notifyIcon;
-        private WndProcDelegate? newWndProc;
+        private WndProcDelegate newWndProc;
 
-        public void InitializeContextMenu(IntPtr hwnd)
+        // Default constructor
+        public SysytemTray(IntPtr hwnd, IntPtr? hIcon = null)
         {
+            IntPtr trayHwnd = InitializeNotifyIcon(hwnd, hIcon);
+
             //Set up window message handling
             newWndProc = new WndProcDelegate(WndProc);
-            SetWindowLongPtr(hwnd, GWLP_WNDPROC, Marshal.GetFunctionPointerForDelegate(newWndProc));
+
+            // Get the previous window procedure for error handling
+            IntPtr prevWndProc = SetWindowLongPtr(trayHwnd, GWLP_WNDPROC, Marshal.GetFunctionPointerForDelegate(newWndProc));
+
+            if (prevWndProc == IntPtr.Zero)
+            {
+                int errorCode = Marshal.GetLastWin32Error();
+                throw new Win32Exception(errorCode);
+            }
         }
 
-        // Overload for initializing the tray while automatically getting the tray icon from the current process
-        public IntPtr InitializeNotifyIcon(IntPtr hwnd)
+        public IntPtr InitializeNotifyIcon(IntPtr hwnd, IntPtr? hIcon_Optional = null)
         {
-            return InitializeNotifyIcon(hwnd, IntPtr.Zero);
-        }
+            // Convert signature's default value of null to IntPtr.Zero
+            // Can't simply set the default value in the signature as IntPtr.Zero because it is not a compile time constant
+            IntPtr hIcon;
+            if (hIcon_Optional == null)
+                hIcon = IntPtr.Zero;
+            else
+                hIcon = (IntPtr)hIcon_Optional;
 
-        public IntPtr InitializeNotifyIcon(IntPtr hwnd, IntPtr hIcon)
-        {
             notifyIcon = new NOTIFYICONDATAW
             {
                 cbSize = (uint)Marshal.SizeOf(typeof(NOTIFYICONDATAW)),
@@ -157,8 +171,6 @@ namespace RainmeterWebhookMonitor
             // Set version (required for reliable operation)
             notifyIcon.uVersion = NOTIFYICON_VERSION;
             Shell_NotifyIcon(NIM_SETVERSION, ref notifyIcon);
-
-            InitializeContextMenu(hwnd);
 
             return hwnd;
         }
