@@ -66,6 +66,9 @@ namespace RainmeterWebhookMonitor
         static bool debugMode = false;
         static bool debugConsoleFileLoggingAlreadyEnabled = false; // Prevents an extra trace listener from being added
 
+        // Declare SystemTray object at class level so it doesn't get garbage collected
+        private static SystemTray? systemTray;
+
         // Import the AllocConsole function from kernel32.dll
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -102,8 +105,7 @@ namespace RainmeterWebhookMonitor
             {
                 // Get hwnd of a main window to use for system tray item
                 IntPtr hwnd = Process.GetCurrentProcess().MainWindowHandle; // Probably zero but try anyway
-
-                SysytemTray sysytemTray = new(hwnd);
+                systemTray = new SystemTray(hwnd);
 
                 ConfigureEndpoints(app);
                 app.Run();

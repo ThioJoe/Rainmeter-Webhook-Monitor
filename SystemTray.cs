@@ -7,7 +7,7 @@ using WinRT;
 
 namespace RainmeterWebhookMonitor
 {
-    public class SysytemTray
+    public class SystemTray
     {
         // This struct tells the system how to display the tray icon and its settings
         // See: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ns-shellapi-notifyicondataw
@@ -90,24 +90,37 @@ namespace RainmeterWebhookMonitor
         private const uint NIM_SETVERSION = 4;
 
         private NOTIFYICONDATAW notifyIcon;
+
+        private delegate IntPtr WndProcDelegate(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
         private WndProcDelegate newWndProc;
+        IntPtr previousWndProc;
 
         // Default constructor
-        public SysytemTray(IntPtr hwnd, IntPtr? hIcon = null)
+        public SystemTray(IntPtr hwnd, IntPtr? hIcon = null)
         {
             IntPtr trayHwnd = InitializeNotifyIcon(hwnd, hIcon);
+            newWndProc = InitializeWndProc(trayHwnd);
+        }
 
+        private WndProcDelegate InitializeWndProc(IntPtr hwnd)
+        {
             //Set up window message handling
             newWndProc = new WndProcDelegate(WndProc);
 
-            // Get the previous window procedure for error handling
-            IntPtr prevWndProc = SetWindowLongPtr(trayHwnd, GWLP_WNDPROC, Marshal.GetFunctionPointerForDelegate(newWndProc));
+            // Clear the last error before calling GetWindowLongPtr. See why: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowlongptra
+            Marshal.SetLastSystemError(0); 
 
-            if (prevWndProc == IntPtr.Zero)
+            // Get the previous window procedure
+            previousWndProc = SetWindowLongPtr(hwnd, GWLP_WNDPROC, Marshal.GetFunctionPointerForDelegate(newWndProc));
+
+            // Check for errors. previousWndProc may have legitimately been zero previously (not just returned zero as error), so also need to check for non-zero last Win32 error
+            if (previousWndProc == IntPtr.Zero && Marshal.GetLastWin32Error() != 0)
             {
                 int errorCode = Marshal.GetLastWin32Error();
                 throw new Win32Exception(errorCode);
             }
+
+            return newWndProc;
         }
 
         public IntPtr InitializeNotifyIcon(IntPtr hwnd, IntPtr? hIcon_Optional = null)
@@ -175,30 +188,35 @@ namespace RainmeterWebhookMonitor
             return hwnd;
         }
 
-        private delegate IntPtr WndProcDelegate(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
-
         private IntPtr WndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
         {
-            if (msg == WM_TRAYICON)
+            try
             {
-                uint lparam = (uint)lParam.ToInt64();
-                // On left clicking the tray icon
-                if (lparam == WM_LBUTTONUP)
+                if (msg == WM_TRAYICON)
                 {
-                    //RestoreFromTray();
-                    return IntPtr.Zero;
+                    uint lparam = (uint)lParam.ToInt64();
+                    // On left clicking the tray icon
+                    if (lparam == WM_LBUTTONUP)
+                    {
+                        //RestoreFromTray();
+                        return IntPtr.Zero;
+                    }
+                    // On right clicking the tray icon
+                    else if (lparam == WM_RBUTTONUP)
+                    {
+                        CustomContextMenu.CreateAndShowMenu(hwnd);
+                        return IntPtr.Zero;
+                    }
                 }
-                // On right clicking the tray icon
-                else if (lparam == WM_RBUTTONUP)
-                {
-                    CustomContextMenu.CreateAndShowMenu(hwnd);
-                    return IntPtr.Zero;
-                }
+                return DefWindowProc(hwnd, msg, wParam, lParam);
             }
-
-            return DefWindowProc(hwnd, msg, wParam, lParam);
+            catch
+            {
+                //return IntPtr.Zero;
+                // For now throw exception to see what's going on
+                throw;
+            }
         }
-
     }
 
     [ComImport]
