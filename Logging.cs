@@ -14,19 +14,16 @@ namespace RainmeterWebhookMonitor
         private static readonly string debugWebhookLogFileName = $"DebugWebhookLog_{timestamp}.txt";
 
         private static string debugFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "RainmeterWebhookMonitor_DebugLogs");
-        private static readonly string debugConsoleLogFilePath = Path.Combine(debugFolderPath, debugConsoleLogFileName);
-        private static readonly string debugWebhookLogFilePath = Path.Combine(debugFolderPath, debugWebhookLogFileName);
+
+        // Ensure the file paths are updated when the debug folder path is changed by using properties with expressions
+        private static string DebugConsoleLogFilePath => Path.Combine(debugFolderPath, debugConsoleLogFileName);
+        private static string DebugWebhookLogFilePath => Path.Combine(debugFolderPath, debugWebhookLogFileName);
 
         public static void InitializeFileLogging()
         {
             if ( !debugConsoleFileLoggingAlreadyEnabled )
             {
-                // Set up a debug log file with timestamped entries
-                Trace.Listeners.Add(new TimestampedTextWriterTraceListener(debugConsoleLogFilePath));
-                Trace.AutoFlush = true;
-                Trace.WriteLine($"Debug log file created at: {debugConsoleLogFilePath}");
-                debugConsoleFileLoggingAlreadyEnabled = true;
-
+                // Need to create the folder first, apparently the trace listener won't do it
                 if ( TryCreateInitialDebugFolder() == false )
                 {
                     Trace.WriteLine("Error creating debug folder. Debug logs will be saved in the current directory.");
@@ -35,6 +32,12 @@ namespace RainmeterWebhookMonitor
                 {
                     Trace.WriteLine($"Debug logs will be saved in: {debugFolderPath}");
                 }
+
+                // Set up a debug log file with timestamped entries
+                Trace.Listeners.Add(new TimestampedTextWriterTraceListener(DebugConsoleLogFilePath)); // It will auto-create the file
+                Trace.AutoFlush = true;
+                Trace.WriteLine($"Debug log file created at: {DebugConsoleLogFilePath}");
+                debugConsoleFileLoggingAlreadyEnabled = true;
             }
         }
 
@@ -67,7 +70,7 @@ namespace RainmeterWebhookMonitor
 
             try
             {
-                File.AppendAllText(debugWebhookLogFilePath, logEntry);
+                File.AppendAllText(DebugWebhookLogFilePath, logEntry);
             }
             catch (Exception ex)
             {
