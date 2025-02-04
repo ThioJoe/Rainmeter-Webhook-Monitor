@@ -214,10 +214,12 @@ namespace RainmeterWebhookMonitor
             }
             catch(Exception ex)
             {
+                // TODO: If it keeps happening, try having it re-register the window procedure
+                Logging.WriteCrashLog(ex);
+
                 if (Program.debugMode == true)
                 {
                     Trace.WriteLine($"Error in WndProc: {ex.Message}");
-                    Logging.WriteCrashLog(ex);
                     NativeMessageBox.ShowErrorMessage("An error occurred. Please check the log for details.", "Error");
                 }
 

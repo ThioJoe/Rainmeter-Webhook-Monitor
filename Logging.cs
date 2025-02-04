@@ -1,9 +1,11 @@
 ﻿using Microsoft.Extensions.Primitives;
 using System.Diagnostics;
 
+#nullable enable
+
 namespace RainmeterWebhookMonitor
 {
-    public class Logging
+    public partial class Logging
     {
         private static bool debugConsoleFileLoggingAlreadyEnabled = false; // Prevents an extra trace listener from being added
 
@@ -17,15 +19,15 @@ namespace RainmeterWebhookMonitor
 
         public static void InitializeFileLogging()
         {
-            if (!debugConsoleFileLoggingAlreadyEnabled)
+            if ( !debugConsoleFileLoggingAlreadyEnabled )
             {
-                // Set up a debug log file
-                Trace.Listeners.Add(new TextWriterTraceListener(debugConsoleLogFilePath));
+                // Set up a debug log file with timestamped entries
+                Trace.Listeners.Add(new TimestampedTextWriterTraceListener(debugConsoleLogFilePath));
                 Trace.AutoFlush = true;
                 Trace.WriteLine($"Debug log file created at: {debugConsoleLogFilePath}");
                 debugConsoleFileLoggingAlreadyEnabled = true;
 
-                if (TryCreateInitialDebugFolder() == false)
+                if ( TryCreateInitialDebugFolder() == false )
                 {
                     Trace.WriteLine("Error creating debug folder. Debug logs will be saved in the current directory.");
                 }
@@ -85,10 +87,18 @@ namespace RainmeterWebhookMonitor
                 logEntry += $"Other info: {otherInfo}\n\n";
             }
 
-            string crashLogPath = Path.Combine(debugFolderPath, $"CrashLog_{timestamp}.txt");
+            string debugFolderToUse;
+            // Create the folder if it doesn't exist. If it fails (return of false), use the current directory
+            if ( CheckAndCreateDebugFolder(folderPath: debugFolderPath) == true )
+            {
+                debugFolderToUse = debugFolderPath;
+            }
+            else
+            {
+                debugFolderToUse = AppContext.BaseDirectory; // Exe's actual directory, not necessarily the working directory
+            }
 
-            // Create the folder if it doesn't exist. If it fails (return of false), don't write the log
-            if (CheckAndCreateDebugFolder() == false) { return; }
+            string crashLogPath = Path.Combine(debugFolderToUse, $"CrashLog_{timestamp}.txt");
 
             try { File.AppendAllText(crashLogPath, logEntry); }
             catch (Exception e) { Trace.WriteLine($"Error writing crash log: {e.Message}"); }
@@ -106,7 +116,7 @@ namespace RainmeterWebhookMonitor
             {
                 try
                 {
-                    Directory.CreateDirectory(folderPathToUse);
+                    Directory.CreateDirectory(path: folderPathToUse); // Will throw on fail
                     return true;
                 }
                 catch (Exception ex)
@@ -137,6 +147,23 @@ namespace RainmeterWebhookMonitor
             }
 
             return true;
+        }
+
+        // --------------------------------------------------------------------------------------------
+        // Custom trace listener that also adds timestamp
+        public partial class TimestampedTextWriterTraceListener(string fileName) : TextWriterTraceListener(fileName)
+        {
+            public override void Write(string? message)
+            {
+                string timestampedMessage = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] - {message}";
+                base.Write(timestampedMessage);
+            }
+
+            public override void WriteLine(string? message)
+            {
+                string timestampedMessage = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] - {message}";
+                base.WriteLine(timestampedMessage);
+            }
         }
 
     }
