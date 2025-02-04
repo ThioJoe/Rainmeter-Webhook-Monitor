@@ -5,12 +5,19 @@ namespace RainmeterWebhookMonitor
 {
     public class NativeContextMenu
     {
-        // Win32 API constants
+        // Win32 System Tray constants
         private const uint TPM_RETURNCMD = 0x0100;
-        private const uint MF_STRING = 0x00000000;
-        private const uint MF_SEPARATOR = 0x00000800;
+
         private const uint TPM_RIGHTBUTTON = 0x0002;
         private const uint TPM_LEFTBUTTON = 0x0000;
+        private const uint TPM_RIGHTALIGN = 0x0008;
+        private const uint TPM_LEFTALIGN = 0x0000;
+        private const uint TPM_BOTTOMALIGN = 0x0020;
+
+        // Win32 Menu item constants. See: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-appendmenua
+        private const uint MF_SEPARATOR = 0x00000800;
+        private const uint MF_DISABLED = 0x00000002;
+        private const uint MF_STRING = 0x00000000;
 
         // Win32 API structures
         [StructLayout(LayoutKind.Sequential)]
@@ -52,6 +59,10 @@ namespace RainmeterWebhookMonitor
                 {
                     InsertMenu(hMenu, itemId, MF_SEPARATOR, itemId, string.Empty);
                 }
+                else if ( item.IsDisabled )
+                {
+                    InsertMenu(hMenu, itemId, MF_STRING | MF_DISABLED, itemId, item.Text);
+                }
                 else
                 {
                     InsertMenu(hMenu, itemId, MF_STRING, itemId, item.Text);
@@ -76,22 +87,16 @@ namespace RainmeterWebhookMonitor
             return clickedItem;
         }
 
-        public class MenuItem
+        public class MenuItem(string text, int index, bool isDisabled)
         {
-            public string Text { get; set; }
-            public bool IsSeparator { get; set; }
-            public int Index { get; set; } // The index should be 1-based
-
-            public MenuItem(string text, int index)
-            {
-                Text = text;
-                IsSeparator = false;
-                Index = index;
-            }
+            public string Text { get; set; } = text;
+            public bool IsSeparator { get; set; } = false;
+            public bool IsDisabled { get; set; } = isDisabled;
+            public int Index { get; set; } = index;
 
             public static MenuItem Separator(int index)
             {
-                return new MenuItem(string.Empty, index) { IsSeparator = true };
+                return new MenuItem(string.Empty, index, false) { IsSeparator = true };
             }
         }
 
@@ -99,9 +104,15 @@ namespace RainmeterWebhookMonitor
         {
             private List<MenuItem> _menuItems = new List<MenuItem>();
 
-            public void AddMenuItem(string text)
+            public void AddMenuItem(string text, bool isDisabled = false)
             {
-                _menuItems.Add(new MenuItem(text, _menuItems.Count + 1)); // 1-based index because 0 is reserved for no selection
+                _menuItems.Add(
+                    new MenuItem(
+                        text,
+                        _menuItems.Count + 1, // 1-based index because 0 is reserved for no selection
+                        isDisabled
+                    )
+                ); 
             }
 
             public void AddSeparator()
@@ -130,6 +141,8 @@ namespace RainmeterWebhookMonitor
     {
         private static class MenuItemNames
         {
+            public const string CheckUpdates = "Check for Updates";
+            public static string AppVersion = "Version " + Program.versionString;
             public const string OpenConfigFile = "Open Config File";
             public const string ReloadConfig = "Reload Config";
             public const string CreateTemplate = "Create Template Config";
@@ -147,6 +160,9 @@ namespace RainmeterWebhookMonitor
             menuItemSet.AddSeparator();
             menuItemSet.AddMenuItem(MenuItemNames.About);
             menuItemSet.AddMenuItem(MenuItemNames.Help);
+            menuItemSet.AddSeparator();
+            menuItemSet.AddMenuItem(MenuItemNames.CheckUpdates);
+            menuItemSet.AddMenuItem(MenuItemNames.AppVersion, isDisabled: true);
             menuItemSet.AddSeparator();
             menuItemSet.AddMenuItem(MenuItemNames.Exit);
 
@@ -182,14 +198,21 @@ namespace RainmeterWebhookMonitor
                         RestartApplication();
                         break;
 
-                    case MenuItemNames.Exit:
-                        ExitApplication();
-                        break;
+
                     case MenuItemNames.Help:
                         ShowHelpWindowMessage();
                         break;
                     case MenuItemNames.About:
                         ShowAboutMessage();
+                        break;
+
+
+                    case MenuItemNames.CheckUpdates:
+                        Program.OpenUpdatesWebsite();
+                        break;
+
+                    case MenuItemNames.Exit:
+                        ExitApplication();
                         break;
 
                     case null:

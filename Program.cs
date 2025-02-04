@@ -57,7 +57,9 @@ namespace RainmeterWebhookMonitor
 
         // Debug related
         public static bool debugMode = false;
-        
+
+        //Other
+        public const string UpdatesURL = @"https://github.com/ThioJoe/Rainmeter-Webhook-Monitor/releases";
 
         // Declare SystemTray object at class level so it doesn't get garbage collected
         private static SystemTray? systemTray;
@@ -433,8 +435,6 @@ namespace RainmeterWebhookMonitor
             }
         }
 
-        
-
         static void ProcessLaunchArgs(string[] args)
         {
             if (args.Length > 0)
@@ -459,6 +459,23 @@ namespace RainmeterWebhookMonitor
                         Trace.Listeners.Add(new ConsoleTraceListener());
                     }
                 }
+            }
+        }
+
+        public static void OpenUpdatesWebsite()
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = UpdatesURL,
+                    UseShellExecute = true
+                };
+                Process.Start(psi);
+            }
+            catch ( Exception e )
+            {
+                Trace.WriteLine("Failed to open the updates website: " + e.Message);
             }
         }
 
