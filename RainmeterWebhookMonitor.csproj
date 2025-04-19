@@ -12,7 +12,7 @@
 	<Version>$(AssemblyVersion)</Version>
 	<PublishAot>False</PublishAot>
 	<Description>Rainmeter Webhook Monitor</Description>
-	<AssemblyVersion>1.1.0.0</AssemblyVersion>
+	<AssemblyVersion>1.1.1.0</AssemblyVersion>
 	<FileVersion>$(AssemblyVersion)</FileVersion>
 	<Title>Rainmeter Webhook Monitor</Title>
   </PropertyGroup>

@@ -17,7 +17,7 @@ namespace RainmeterWebhookMonitor
             public uint cbSize;
             public IntPtr hWnd;
             public uint uID;
-            public uint uFlags;
+            public NOTIFYICONDATAA_uFlags uFlags;
             public uint uCallbackMessage;
             public IntPtr hIcon;
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
@@ -26,7 +26,7 @@ namespace RainmeterWebhookMonitor
             public uint dwStateMask;
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
             public string szInfo;
-            public uint uVersion;  // Changed from union to direct field
+            public uVersion uVersion;
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)]
             public string szInfoTitle;
             public uint dwInfoFlags;
@@ -35,7 +35,7 @@ namespace RainmeterWebhookMonitor
         }
 
         [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
-        static extern bool Shell_NotifyIcon(uint dwMessage, ref NOTIFYICONDATAW lpData);
+        static extern bool Shell_NotifyIcon(NotifyIcon_dwMessage dwMessage, ref NOTIFYICONDATAW lpData);
 
         [DllImport("user32.dll")]
         static extern IntPtr LoadIcon(IntPtr hInstance, IntPtr lpIconName);
@@ -44,7 +44,7 @@ namespace RainmeterWebhookMonitor
         static extern bool GetCursorPos(out POINT lpPoint);
 
         [DllImport("user32.dll")]
-        static extern IntPtr DefWindowProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
+        static extern IntPtr DefWindowProc(IntPtr hWnd, uint uMsg, UIntPtr wParam, IntPtr lParam);
 
         [DllImport("user32.dll")]
         static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
@@ -54,6 +54,13 @@ namespace RainmeterWebhookMonitor
 
         [DllImport("user32.dll")]
         static extern IntPtr CreateIconFromResource(byte[] presbits, uint dwResSize, bool fIcon, uint dwVer);
+
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        static extern uint RegisterWindowMessage(string lpString);
+
+        // Using this to pass on messages to the original default window procedure if not being processed by the custom one
+        [DllImport("user32.dll")]
+        static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint uMsg, UIntPtr wParam, IntPtr lParam);
 
         [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         static extern IntPtr CreateWindowEx(
@@ -78,26 +85,24 @@ namespace RainmeterWebhookMonitor
             public int Y;
         }
 
-        private const uint NIM_ADD = 0x00000000;
-        private const uint NIF_MESSAGE = 0x00000001;
-        private const uint NIF_ICON = 0x00000002;
-        private const uint NIF_TIP = 0x00000004;
         private const int WM_LBUTTONUP = 0x0202;
         private const int WM_RBUTTONUP = 0x0205;
         private const int WM_TRAYICON = 0x800;
         private const int GWLP_WNDPROC = -4;
-        private const uint NOTIFYICON_VERSION = 3;
-        private const uint NIM_SETVERSION = 4;
 
         private NOTIFYICONDATAW notifyIcon;
 
-        private delegate IntPtr WndProcDelegate(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
+        private delegate IntPtr WndProcDelegate(IntPtr hwnd, uint msg, UIntPtr wParam, IntPtr lParam);
         private WndProcDelegate newWndProc;
         IntPtr previousWndProc;
+
+        // For re-creation of the tray icon after a taskbar restart
+        private uint _taskbarCreatedMessageId;
 
         // Default constructor
         public SystemTray(IntPtr hwnd, IntPtr? hIcon = null)
         {
+            RegisterTaskbarCreatedMessage();
             IntPtr trayHwnd = InitializeNotifyIcon(hwnd, hIcon);
             newWndProc = InitializeWndProc(trayHwnd);
         }
@@ -125,7 +130,24 @@ namespace RainmeterWebhookMonitor
             return newWndProc;
         }
 
-        public IntPtr InitializeNotifyIcon(IntPtr hwnd, IntPtr? hIcon_Optional = null)
+        private void RegisterTaskbarCreatedMessage()
+        {
+            // Register the TaskbarCreated message
+            _taskbarCreatedMessageId = RegisterWindowMessage("TaskbarCreated");
+            if (_taskbarCreatedMessageId == 0)
+            {
+                // Handle error: Could not register the message
+                int error = Marshal.GetLastWin32Error();
+                Debug.WriteLine($"Failed to register TaskbarCreated message. Error: {error}");
+                // Depending on requirements, you might want to throw or log more severely
+            }
+            else
+            {
+                Debug.WriteLine($"TaskbarCreated message registered with ID: {_taskbarCreatedMessageId}");
+            }
+        }
+
+        public IntPtr InitializeNotifyIcon(IntPtr? hwndInput = null, IntPtr? hIcon_Optional = null)
         {
             // Convert signature's default value of null to IntPtr.Zero
             // Can't simply set the default value in the signature as IntPtr.Zero because it is not a compile time constant
@@ -135,21 +157,22 @@ namespace RainmeterWebhookMonitor
             else
                 hIcon = (IntPtr)hIcon_Optional;
 
+            // If hwnd is IntPtr.Zero, create a hidden 0x0 window to receive tray icon messages
+            IntPtr hwnd = hwndInput ?? IntPtr.Zero;
+            if (hwndInput == IntPtr.Zero)
+            {
+                hwnd = CreateWindowEx(0, "STATIC", "RainmeterWebhookMonitor_SystemTray", 0, 0, 0, 0, 0, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+                notifyIcon.hWnd = hwnd;
+            }
+
             notifyIcon = new NOTIFYICONDATAW
             {
                 cbSize = (uint)Marshal.SizeOf(typeof(NOTIFYICONDATAW)),
                 hWnd = hwnd,
                 uID = 1,
-                uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP,
+                uFlags = NOTIFYICONDATAA_uFlags.NIF_ICON | NOTIFYICONDATAA_uFlags.NIF_MESSAGE | NOTIFYICONDATAA_uFlags.NIF_TIP,
                 uCallbackMessage = WM_TRAYICON
             };
-
-            // If hwnd is IntPtr.Zero, create a hidden 0x0 window to receive tray icon messages
-            if (hwnd == IntPtr.Zero)
-            {
-                hwnd = CreateWindowEx(0, "STATIC", "RainmeterWebhookMonitor_SystemTray", 0, 0, 0, 0, 0, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
-                notifyIcon.hWnd = hwnd;
-            }
 
             // If no icon handle is provided, try to load it from the current process, otherwise use default app icon
             if (hIcon == IntPtr.Zero)
@@ -175,59 +198,78 @@ namespace RainmeterWebhookMonitor
             notifyIcon.szTip = "Rainmeter Webhook Monitor"; // Tooltip
             notifyIcon.hIcon = hIcon; // Icon
 
-            // Add the icon
-            if (!Shell_NotifyIcon(NIM_ADD, ref notifyIcon))
+            // Add or Modify the icon
+            // Use NIM_MODIFY if the icon might already exist (e.g., after TaskbarCreated), otherwise use NIM_ADD. NIM_ADD fails if the icon already exists.
+            // A simple strategy is to try Add, and if it fails, try Modify. However, for the initial add, NIM_ADD is correct.
+            if (Shell_NotifyIcon(NotifyIcon_dwMessage.NIM_ADD, ref notifyIcon))
             {
-                // Handle error
-                var error = Marshal.GetLastWin32Error();
-                Trace.WriteLine($"Failed to add tray icon. Error: {error}");
+                notifyIcon.uVersion = uVersion.NOTIFYICON_VERSION_4; // Done after adding the icon
+                if (!Shell_NotifyIcon(NotifyIcon_dwMessage.NIM_SETVERSION, ref notifyIcon))
+                {
+                    Debug.WriteLine($"Failed to set tray icon version. Error: {Marshal.GetLastWin32Error()}");
+                }
             }
-
-            // Set version (required for reliable operation)
-            notifyIcon.uVersion = NOTIFYICON_VERSION;
-            Shell_NotifyIcon(NIM_SETVERSION, ref notifyIcon);
+            else
+            {
+                int error = Marshal.GetLastWin32Error();
+                // ERROR_TIMEOUT (1460) can occur if the taskbar isn't ready.
+                // ERROR_OBJECT_NOT_FOUND (4312) might occur on NIM_MODIFY if icon doesn't exist.
+                Trace.WriteLine($"Failed to add tray icon. Error: {error}");
+                // Optionally try NIM_MODIFY here if add failed, though it shouldn't be needed on first run.
+                // if (!Shell_NotifyIcon(WinEnums.NotifyIcon_dwMessage.NIM_MODIFY, ref notifyIcon)) { ... }
+            }
 
             return hwnd;
         }
 
-        private IntPtr WndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
+        private void RecreateNotifyIcon(IntPtr hwnd)
         {
-            try
-            {
-                if (msg == WM_TRAYICON)
-                {
-                    uint lparam = (uint)lParam.ToInt64();
-                    // On left clicking the tray icon
-                    if (lparam == WM_LBUTTONUP)
-                    {
-                        //RestoreFromTray();
-                        return IntPtr.Zero;
-                    }
-                    // On right clicking the tray icon
-                    else if (lparam == WM_RBUTTONUP)
-                    {
-                        CustomContextMenu.CreateAndShowMenu(hwnd);
-                        return IntPtr.Zero;
-                    }
-                }
-                return DefWindowProc(hwnd, msg, wParam, lParam);
-            }
-            catch(Exception ex)
-            {
-                // TODO: If it keeps happening, try having it re-register the window procedure
-                Logging.WriteCrashLog(ex);
+            Debug.WriteLine("Taskbar created/restarted. Attempting to recreate tray icon.");
 
-                if (Program.debugMode == true)
-                {
-                    Trace.WriteLine($"Error in WndProc: {ex.Message}");
-                    NativeMessageBox.ShowErrorMessage("An error occurred. Please check the log for details.", "Error");
-                }
+            // If the icon was previously visible (or should be), try adding it again.
+            // The InitializeAndAddNotifyIcon handles the setup and NIM_ADD/NIM_SETVERSION logic.
+            // We might need to NIM_DELETE first if NIM_ADD fails consistently after restart,
+            //      but often just NIM_ADD/NIM_MODIFY after TaskbarCreated is sufficient. Let's retry the Add/SetVersion flow.
 
-                // For now throw exception to see what's going on
-                throw;
+            // Remove the old icon first (best practice) - ignore errors as it might already be gone
+            Shell_NotifyIcon(NotifyIcon_dwMessage.NIM_DELETE, ref notifyIcon);
+
+            // Re-initialize and add the icon
+            InitializeNotifyIcon(hwnd);
+        }
+
+        private IntPtr WndProc(IntPtr hwnd, uint msg, UIntPtr wParam, IntPtr lParam)
+        {
+            if (msg == WM_TRAYICON)
+            {
+
+                uint mouseMessage = (uint)lParam.ToInt64() & 0xFFFF; // Extract lower word
+
+                // On left clicking the tray icon
+                if (mouseMessage == WM_LBUTTONUP)
+                {
+                    //RestoreFromTray();
+                    return IntPtr.Zero;
+                }
+                // On right clicking the tray icon
+                else if (mouseMessage == WM_RBUTTONUP)
+                {
+                    CustomContextMenu.CreateAndShowMenu(hwnd);
+                    return IntPtr.Zero;
+                }
             }
+            else if (_taskbarCreatedMessageId != 0 && msg == _taskbarCreatedMessageId)
+            {
+                RecreateNotifyIcon(hwnd);
+                // We handle this message, but it's often broadcast, so returning DefWindowProc might be safer than Zero to allow other apps to receive it too.
+                // However, for handling *our* icon recreation, Zero is technically correct. Let's pass it on just in case.
+                return CallWindowProc(previousWndProc, hwnd, (uint)msg, wParam, lParam); // Pass it on
+            }
+            return DefWindowProc(hwnd, msg, wParam, lParam);
+
         }
     }
+
 
     [ComImport]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -235,5 +277,38 @@ namespace RainmeterWebhookMonitor
     internal interface IWindowNative
     {
         IntPtr WindowHandle { get; }
+    }
+
+    [Flags]
+    public enum NOTIFYICONDATAA_uFlags : uint
+    {
+        NIF_MESSAGE = 0x00000001,
+        NIF_ICON = 0x00000002,
+        NIF_TIP = 0x00000004,
+        NIF_STATE = 0x00000008,
+        NIF_INFO = 0x00000010,
+        NIF_GUID = 0x00000020,
+        NIF_REALTIME = 0x00000040,
+        NIF_SHOWTIP = 0x00000080
+    }
+
+    // For use in the NOTIFYICONDATA structure
+    // See: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ns-shellapi-notifyicondataa
+    // Values from shellapi.h
+    public enum uVersion : uint
+    {
+        _zero = 0, // Not named but a possible value
+        NOTIFYICON_VERSION = 3, // Use this or else the context menu will not work
+        NOTIFYICON_VERSION_4 = 4
+    }
+
+    // See: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shell_notifyiconw
+    public enum NotifyIcon_dwMessage
+    {
+        NIM_ADD = 0x00000000,
+        NIM_MODIFY = 0x00000001,
+        NIM_DELETE = 0x00000002,
+        NIM_SETFOCUS = 0x00000003,
+        NIM_SETVERSION = 0x00000004
     }
 }
