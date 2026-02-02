@@ -2,8 +2,8 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
-using Windows.UI.WindowManagement;
-using WinRT;
+//using Windows.UI.WindowManagement;
+//using WinRT;
 
 namespace RainmeterWebhookMonitor
 {
@@ -170,7 +170,7 @@ namespace RainmeterWebhookMonitor
                 cbSize = (uint)Marshal.SizeOf(typeof(NOTIFYICONDATAW)),
                 hWnd = hwnd,
                 uID = 1,
-                uFlags = NOTIFYICONDATAA_uFlags.NIF_ICON | NOTIFYICONDATAA_uFlags.NIF_MESSAGE | NOTIFYICONDATAA_uFlags.NIF_TIP,
+                uFlags = NOTIFYICONDATAA_uFlags.NIF_ICON | NOTIFYICONDATAA_uFlags.NIF_MESSAGE | NOTIFYICONDATAA_uFlags.NIF_TIP | NOTIFYICONDATAA_uFlags.NIF_SHOWTIP,
                 uCallbackMessage = WM_TRAYICON
             };
 

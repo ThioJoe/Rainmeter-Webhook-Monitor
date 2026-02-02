@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 
 #nullable enable
 #pragma warning disable IDE0028 // Simplify collection initialization. Some places it's clearer to use new() instead of []
+[assembly: DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
 
 namespace RainmeterWebhookMonitor
 {
